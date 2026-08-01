@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>利用明細帳</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F6F3EC;
+    --paper-deep:#EFEADD;
+    --line:#DCD3B9;
+    --ink:#2C3A36;
+    --ink-soft:#5B6B63;
+    --teal:#3F6F66;
+    --teal-deep:#2A4B45;
+    --gold:#B8862E;
+    --coral:#B5484D;
+    --white:#FFFDF8;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper-deep);
+    color:var(--ink);
+    font-family:'Zen Kaku Gothic New', sans-serif;
+    font-feature-settings:"tnum";
+    padding-bottom:60px;
+  }
+  .wrap{max-width:640px;margin:0 auto;padding:20px 16px 40px;}
+
+  /* Header */
+  header{
+    text-align:center;
+    padding:22px 0 14px;
+  }
+  header h1{
+    font-family:'Shippori Mincho B1', serif;
+    font-weight:700;
+    font-size:26px;
+    color:var(--teal-deep);
+    letter-spacing:.08em;
+    margin:0;
+  }
+  header .sub{
+    font-size:11px;
+    color:var(--ink-soft);
+    letter-spacing:.25em;
+    margin-top:4px;
+  }
+
+  /* Tabs */
+  .tabs{
+    display:flex;
+    gap:6px;
+    margin-bottom:16px;
+  }
+  .tab-btn{
+    flex:1;
+    padding:10px 4px;
+    background:var(--paper);
+    border:1px solid var(--line);
+    border-bottom:none;
+    border-radius:10px 10px 0 0;
+    font-family:'Zen Kaku Gothic New', sans-serif;
+    font-weight:700;
+    font-size:13.5px;
+    color:var(--ink-soft);
+    cursor:pointer;
+    position:relative;
+    top:1px;
+  }
+  .tab-btn.active{
+    background:var(--white);
+    color:var(--teal-deep);
+    border-color:var(--teal);
+    box-shadow:0 -2px 0 var(--teal) inset;
+  }
+  .panel{display:none;}
+  .panel.active{display:block;}
+
+  .card{
+    background:var(--white);
+    border:1px solid var(--line);
+    border-radius:0 12px 12px 12px;
+    padding:18px;
+    margin-bottom:16px;
+  }
+  .card h2{
+    font-size:13px;
+    color:var(--teal-deep);
+    letter-spacing:.1em;
+    margin:0 0 12px;
+    display:flex;
+    align-items:center;
+    gap:6px;
+  }
+  .card h2::before{
+    content:"";
+    width:6px;height:6px;
+    background:var(--gold);
+    border-radius:50%;
+    display:inline-block;
+  }
+
+  label{
+    display:block;
+    font-size:11.5px;
+    color:var(--ink-soft);
+    margin-bottom:4px;
+    letter-spacing:.05em;
+  }
+  input[type=text], input[type=number], input[type=date], select{
+    width:100%;
+    padding:10px 12px;
+    border:1px solid var(--line);
+    border-radius:8px;
+    font-family:inherit;
+    font-size:15px;
+    background:var(--paper);
+    color:var(--ink);
+  }
+  input:focus, select:focus{outline:2px solid var(--teal); outline-offset:1px;}
+
+  .row{display:flex; gap:10px;}
+  .row > div{flex:1;}
+  .row2{margin-top:10px;}
+
+  button{
+    font-family:'Zen Kaku Gothic New', sans-serif;
+    cursor:pointer;
+    border:none;
+  }
+  .btn-primary{
+    background:var(--teal);
+    color:var(--white);
+    padding:10px 16px;
+    border-radius:8px;
+    font-weight:700;
+    font-size:14px;
+  }
+  .btn-primary:hover{background:var(--teal-deep);}
+  .btn-ghost{
+    background:transparent;
+    color:var(--teal-deep);
+    border:1px solid var(--teal);
+    padding:9px 14px;
+    border-radius:8px;
+    font-weight:700;
+    font-size:13px;
+  }
+  .btn-del{
+    background:transparent;
+    color:var(--coral);
+    font-size:12px;
+    font-weight:700;
+    padding:4px 8px;
+  }
+
+  /* quick chips */
+  .chip-wrap{display:flex; flex-wrap:wrap; gap:8px; margin-top:12px;}
+  .chip{
+    background:var(--paper);
+    border:1px solid var(--gold);
+    color:var(--teal-deep);
+    border-radius:999px;
+    padding:8px 14px;
+    font-size:13px;
+    font-weight:700;
+    white-space:nowrap;
+  }
+  .chip .price{color:var(--gold); margin-left:6px;}
+  .chip:hover{background:#F3E7CC;}
+  .chip-empty{font-size:12px; color:var(--ink-soft);}
+
+  /* item list */
+  .item-list{list-style:none; margin:14px 0 0; padding:0;}
+  .item-list li{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:9px 2px;
+    border-bottom:1px dashed var(--line);
+    font-size:14.5px;
+  }
+  .item-list .amt{font-weight:700; color:var(--ink);}
+  .item-empty{color:var(--ink-soft); font-size:13px; padding:10px 2px;}
+
+  /* receipt summary */
+  .receipt{
+    background:var(--white);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:20px;
+    position:relative;
+    margin-bottom:16px;
+  }
+  .receipt::before, .receipt::after{
+    content:"";
+    position:absolute;
+    top:-1px; bottom:-1px;
+    width:14px;
+    background:
+      radial-gradient(circle at 7px 0, transparent 7px, var(--paper-deep) 7.5px) 0 -7px/14px 14px repeat-y;
+  }
+  .receipt::before{left:-7px;}
+  .receipt::after{right:-7px;}
+  .receipt .who{
+    font-family:'Shippori Mincho B1', serif;
+    font-size:18px;
+    color:var(--teal-deep);
+    margin-bottom:2px;
+  }
+  .receipt .date{font-size:12px; color:var(--ink-soft); margin-bottom:14px;}
+  .r-line{
+    display:flex;
+    justify-content:space-between;
+    font-size:14.5px;
+    padding:6px 0;
+  }
+  .r-line.total{color:var(--coral);}
+  .r-divider{border-top:1px dashed var(--line); margin:8px 0;}
+  .r-line.balance{
+    font-size:19px;
+    font-weight:900;
+    color:var(--teal-deep);
+    padding-top:10px;
+  }
+  .r-line.balance .val.negative{color:var(--coral);}
+
+  .action-row{display:flex; gap:10px; margin-bottom:30px;}
+  .action-row button{flex:1; padding:12px; border-radius:10px; font-size:14px; font-weight:700;}
+
+  .preset-list{list-style:none; margin:14px 0 0; padding:0;}
+  .preset-list li{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:10px 12px;
+    background:var(--paper);
+    border:1px solid var(--line);
+    border-radius:8px;
+    margin-bottom:8px;
+    font-size:14px;
+  }
+  .preset-list .label{font-weight:700;}
+  .preset-list .price{color:var(--gold); font-weight:700; margin-left:8px;}
+
+  .user-manage{display:flex; gap:8px; margin-top:8px;}
+  .user-manage input{flex:1;}
+
+  footer.note{
+    text-align:center;
+    font-size:11px;
+    color:var(--ink-soft);
+    margin-top:10px;
+  }
+
+  @media print{
+    body{background:#fff; padding:0;}
+    .tabs, .action-row, .card:not(.print-show), header .sub, #backupCard{display:none !important;}
+    .wrap{max-width:100%; padding:0;}
+    .receipt{border:1px solid #999;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>利用明細帳</h1>
+    <div class="sub">GUIDE HELPER RECORD</div>
+  </header>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="main">利用明細</button>
+    <button class="tab-btn" data-tab="transport">移動費</button>
+    <button class="tab-btn" data-tab="quick">よく使う項目</button>
+  </div>
+
+  <!-- MAIN -->
+  <div class="panel active" id="panel-main">
+
+    <div class="card">
+      <h2>利用者・日付</h2>
+      <div class="row">
+        <div>
+          <label>利用者名</label>
+          <select id="userSelect"></select>
+        </div>
+        <div>
+          <label>日付</label>
+          <input type="date" id="dateInput">
+        </div>
+      </div>
+      <div class="user-manage">
+        <input type="text" id="newUserInput" placeholder="新しい利用者名を追加">
+        <button class="btn-ghost" id="addUserBtn">追加</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>所持金</h2>
+      <input type="number" id="cashInput" placeholder="例）10000" inputmode="numeric">
+    </div>
+
+    <div class="card">
+      <h2>買い物・支出の入力</h2>
+      <div class="row">
+        <div style="flex:2">
+          <label>品目</label>
+          <input type="text" id="itemNameInput" placeholder="例）ジュース">
+        </div>
+        <div>
+          <label>金額</label>
+          <input type="number" id="itemPriceInput" placeholder="円" inputmode="numeric">
+        </div>
+      </div>
+      <div class="row row2">
+        <button class="btn-primary" id="addItemBtn" style="width:100%">＋ 明細に追加</button>
+      </div>
+
+      <div id="quickChips" class="chip-wrap"></div>
+
+      <ul class="item-list" id="itemList"></ul>
+    </div>
+
+    <div class="receipt" id="receiptArea">
+      <div class="who" id="rWho">利用者未選択</div>
+      <div class="date" id="rDate">-</div>
+      <div class="r-line"><span>所持金</span><span class="val" id="rCash">¥0</span></div>
+      <div class="r-line total"><span>利用合計</span><span class="val" id="rTotal">-¥0</span></div>
+      <div class="r-divider"></div>
+      <div class="r-line balance"><span>残高</span><span class="val" id="rBalance">¥0</span></div>
+    </div>
+
+    <div class="action-row">
+      <button class="btn-ghost" id="printBtn">🖨 印刷する</button>
+      <button class="btn-ghost" id="screenshotBtn">📷 画像で保存</button>
+    </div>
+  </div>
+
+  <!-- TRANSPORT -->
+  <div class="panel" id="panel-transport">
+    <div class="card">
+      <h2>移動費を保存する</h2>
+      <div class="row">
+        <div>
+          <label>区間・内容（例：梅田駅→難波駅）</label>
+          <input type="text" id="tLabelInput" placeholder="〇〇駅→〇〇駅">
+        </div>
+      </div>
+      <div class="row row2">
+        <div>
+          <label>金額</label>
+          <input type="number" id="tPriceInput" placeholder="円" inputmode="numeric">
+        </div>
+      </div>
+      <div class="row row2">
+        <button class="btn-primary" id="addTransportBtn" style="width:100%">＋ 移動費を保存</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>保存済みの移動費</h2>
+      <ul class="preset-list" id="transportList"></ul>
+    </div>
+  </div>
+
+  <!-- QUICK ITEMS -->
+  <div class="panel" id="panel-quick">
+    <div class="card">
+      <h2>よく使う項目を保存する</h2>
+      <div class="row">
+        <div>
+          <label>項目名（例：ヘアカット代）</label>
+          <input type="text" id="qLabelInput" placeholder="項目名">
+        </div>
+      </div>
+      <div class="row row2">
+        <div>
+          <label>金額</label>
+          <input type="number" id="qPriceInput" placeholder="円" inputmode="numeric">
+        </div>
+      </div>
+      <div class="row row2">
+        <button class="btn-primary" id="addQuickBtn" style="width:100%">＋ 項目を保存</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>保存済みの項目</h2>
+      <ul class="preset-list" id="quickList"></ul>
+    </div>
+  </div>
+
+  <div class="card" id="backupCard">
+    <h2>データの控え（バックアップ）</h2>
+    <p style="font-size:12.5px; color:var(--ink-soft); margin:0 0 12px;">
+      利用者名・移動費・よく使う項目をファイルに書き出して保存できます。自動保存がうまくいかない時の控えとして使ってください。
+    </p>
+    <div class="row">
+      <button class="btn-ghost" id="exportBtn" style="width:100%">⬇ バックアップを保存</button>
+      <button class="btn-ghost" id="importBtn" style="width:100%">⬆ バックアップを読み込む</button>
+    </div>
+    <input type="file" id="importFile" accept="application/json" style="display:none">
+  </div>
+
+  <footer class="note">入力内容はこの端末（および可能であればお使いのアカウント）に保存されます</footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+const fmt = n => "¥" + (Number(n)||0).toLocaleString();
+
+// ---------- state ----------
+let users = [];
+let transportPresets = [];
+let quickPresets = [];
+let currentItems = []; // {id, label, price}
+
+// ---------- storage helpers ----------
+// すべてのデータを1つのキーにまとめて保存(呼び出し回数を最小化)
+const STORE_KEY = 'appdata';
+
+async function loadAll(){
+  // 新形式(1キー)を読む
+  const data = await rawGet(STORE_KEY);
+  if(data){
+    users = Array.isArray(data.users) ? data.users : [];
+    transportPresets = Array.isArray(data.transportPresets) ? data.transportPresets : [];
+    quickPresets = Array.isArray(data.quickPresets) ? data.quickPresets : [];
+    return;
+  }
+  // 旧形式(3キー)からの引き継ぎ
+  users = (await rawGet('users')) || [];
+  transportPresets = (await rawGet('transport-presets')) || [];
+  quickPresets = (await rawGet('quick-items')) || [];
+  if(users.length || transportPresets.length || quickPresets.length){
+    await saveAll();
+  }
+}
+
+async function rawGet(key){
+  try{
+    const r = await window.storage.get(key, false);
+    if(!r || typeof r.value !== 'string') return null;
+    return JSON.parse(r.value);
+  }catch(e){
+    return null; // 未作成キーはここに来る(正常)
+  }
+}
+
+async function saveAll(){
+  const payload = JSON.stringify({
+    users, transportPresets, quickPresets,
+    savedAt: new Date().toISOString()
+  });
+  for(let attempt=1; attempt<=3; attempt++){
+    try{
+      const result = await window.storage.set(STORE_KEY, payload, false);
+      if(result){
+        storageBroken = false;
+        return true;
+      }
+      console.error('storage set returned null, attempt', attempt);
+    }catch(e){
+      console.error('storage set error, attempt '+attempt, e);
+    }
+    await new Promise(r=>setTimeout(r, 500 * attempt));
+  }
+  storageBroken = true;
+  showToast('自動保存に失敗しました。「バックアップを保存」で控えを取ってください');
+  return false;
+}
+let storageBroken = false;
+
+// ---------- toast ----------
+let toastTimer = null;
+function showToast(msg){
+  let el = document.getElementById('toast');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'toast';
+    el.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);'
+      +'background:var(--ink);color:#fff;padding:10px 18px;border-radius:999px;'
+      +'font-size:13px;z-index:999;box-shadow:0 4px 14px rgba(0,0,0,.25);opacity:0;'
+      +'transition:opacity .2s;max-width:85%;text-align:center;';
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  requestAnimationFrame(()=>{ el.style.opacity = '1'; });
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>{ el.style.opacity = '0'; }, 2600);
+}
+
+// ---------- tabs ----------
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-'+btn.dataset.tab).classList.add('active');
+  });
+});
+
+// ---------- users ----------
+function renderUserSelect(){
+  const sel = document.getElementById('userSelect');
+  const prev = sel.value;
+  sel.innerHTML = '';
+  if(users.length === 0){
+    const opt = document.createElement('option');
+    opt.textContent = '（利用者を追加してください）';
+    opt.value = '';
+    sel.appendChild(opt);
+  }else{
+    users.forEach(u=>{
+      const opt = document.createElement('option');
+      opt.value = u; opt.textContent = u;
+      sel.appendChild(opt);
+    });
+    if(users.includes(prev)) sel.value = prev;
+  }
+  updateReceipt();
+}
+document.getElementById('addUserBtn').addEventListener('click', async ()=>{
+  const input = document.getElementById('newUserInput');
+  const name = input.value.trim();
+  if(!name) return;
+  if(!users.includes(name)) users.push(name);
+  await saveAll();
+  input.value = '';
+  renderUserSelect();
+  document.getElementById('userSelect').value = name;
+  updateReceipt();
+});
+document.getElementById('userSelect').addEventListener('change', updateReceipt);
+
+// ---------- date / cash ----------
+function todayStr(){
+  const d = new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+document.getElementById('dateInput').value = todayStr();
+document.getElementById('dateInput').addEventListener('change', updateReceipt);
+document.getElementById('cashInput').addEventListener('input', updateReceipt);
+
+// ---------- item list (current visit) ----------
+function renderItemList(){
+  const ul = document.getElementById('itemList');
+  ul.innerHTML = '';
+  if(currentItems.length === 0){
+    ul.innerHTML = '<li class="item-empty">まだ品目がありません</li>';
+  }else{
+    currentItems.forEach(it=>{
+      const li = document.createElement('li');
+      li.innerHTML = `<span>${escapeHtml(it.label)}</span>
+        <span><span class="amt">${fmt(it.price)}</span>
+        <button class="btn-del" data-id="${it.id}">削除</button></span>`;
+      ul.appendChild(li);
+    });
+    ul.querySelectorAll('.btn-del').forEach(b=>{
+      b.addEventListener('click', ()=>{
+        currentItems = currentItems.filter(i=>i.id !== b.dataset.id);
+        renderItemList(); updateReceipt();
+      });
+    });
+  }
+}
+function escapeHtml(s){
+  return s.replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function addItem(label, price){
+  if(!label || !price) return;
+  currentItems.push({id: Date.now()+Math.random().toString(36).slice(2), label, price: Number(price)});
+  renderItemList(); updateReceipt();
+}
+document.getElementById('addItemBtn').addEventListener('click', ()=>{
+  const nameEl = document.getElementById('itemNameInput');
+  const priceEl = document.getElementById('itemPriceInput');
+  addItem(nameEl.value.trim(), priceEl.value);
+  nameEl.value=''; priceEl.value='';
+  nameEl.focus();
+});
+
+// ---------- quick chips (transport + quick items combined) ----------
+function renderQuickChips(){
+  const wrap = document.getElementById('quickChips');
+  wrap.innerHTML = '';
+  const all = [...transportPresets, ...quickPresets];
+  if(all.length === 0){
+    wrap.innerHTML = '<span class="chip-empty">「移動費」「よく使う項目」タブで保存すると、ここにボタンが出ます</span>';
+    return;
+  }
+  all.forEach(p=>{
+    const chip = document.createElement('button');
+    chip.className = 'chip';
+    chip.type = 'button';
+    chip.innerHTML = `${escapeHtml(p.label)}<span class="price">${fmt(p.price)}</span>`;
+    chip.addEventListener('click', ()=> addItem(p.label, p.price));
+    wrap.appendChild(chip);
+  });
+}
+
+// ---------- receipt ----------
+function updateReceipt(){
+  const who = document.getElementById('userSelect').value || '利用者未選択';
+  const date = document.getElementById('dateInput').value;
+  const cash = Number(document.getElementById('cashInput').value)||0;
+  const total = currentItems.reduce((s,i)=>s+Number(i.price),0);
+  const balance = cash - total;
+
+  document.getElementById('rWho').textContent = who;
+  document.getElementById('rDate').textContent = date;
+  document.getElementById('rCash').textContent = fmt(cash);
+  document.getElementById('rTotal').textContent = '-' + fmt(total);
+  const balEl = document.getElementById('rBalance');
+  balEl.textContent = fmt(balance);
+  balEl.classList.toggle('negative', balance < 0);
+}
+
+// ---------- transport presets ----------
+function renderTransportList(){
+  const ul = document.getElementById('transportList');
+  ul.innerHTML = '';
+  if(transportPresets.length === 0){
+    ul.innerHTML = '<li class="item-empty" style="background:none;border:none;">まだ保存された移動費はありません</li>';
+  }else{
+    transportPresets.forEach(p=>{
+      const li = document.createElement('li');
+      li.innerHTML = `<span class="label">${escapeHtml(p.label)}<span class="price">${fmt(p.price)}</span></span>
+        <button class="btn-del" data-id="${p.id}">削除</button>`;
+      ul.appendChild(li);
+    });
+    ul.querySelectorAll('.btn-del').forEach(b=>{
+      b.addEventListener('click', async ()=>{
+        transportPresets = transportPresets.filter(p=>p.id !== b.dataset.id);
+        await saveAll();
+        renderTransportList(); renderQuickChips();
+      });
+    });
+  }
+}
+document.getElementById('addTransportBtn').addEventListener('click', async ()=>{
+  const labelEl = document.getElementById('tLabelInput');
+  const priceEl = document.getElementById('tPriceInput');
+  const label = labelEl.value.trim();
+  const price = Number(priceEl.value);
+  if(!label || !price) return;
+  transportPresets.push({id: Date.now()+Math.random().toString(36).slice(2), label, price});
+  await saveAll();
+  labelEl.value=''; priceEl.value='';
+  renderTransportList(); renderQuickChips();
+});
+
+// ---------- quick item presets ----------
+function renderQuickList(){
+  const ul = document.getElementById('quickList');
+  ul.innerHTML = '';
+  if(quickPresets.length === 0){
+    ul.innerHTML = '<li class="item-empty" style="background:none;border:none;">まだ保存された項目はありません</li>';
+  }else{
+    quickPresets.forEach(p=>{
+      const li = document.createElement('li');
+      li.innerHTML = `<span class="label">${escapeHtml(p.label)}<span class="price">${fmt(p.price)}</span></span>
+        <button class="btn-del" data-id="${p.id}">削除</button>`;
+      ul.appendChild(li);
+    });
+    ul.querySelectorAll('.btn-del').forEach(b=>{
+      b.addEventListener('click', async ()=>{
+        quickPresets = quickPresets.filter(p=>p.id !== b.dataset.id);
+        await saveAll();
+        renderQuickList(); renderQuickChips();
+      });
+    });
+  }
+}
+document.getElementById('addQuickBtn').addEventListener('click', async ()=>{
+  const labelEl = document.getElementById('qLabelInput');
+  const priceEl = document.getElementById('qPriceInput');
+  const label = labelEl.value.trim();
+  const price = Number(priceEl.value);
+  if(!label || !price) return;
+  quickPresets.push({id: Date.now()+Math.random().toString(36).slice(2), label, price});
+  await saveAll();
+  labelEl.value=''; priceEl.value='';
+  renderQuickList(); renderQuickChips();
+});
+
+// ---------- print / screenshot ----------
+document.getElementById('printBtn').addEventListener('click', ()=> window.print());
+document.getElementById('screenshotBtn').addEventListener('click', async ()=>{
+  const target = document.getElementById('receiptArea');
+  const canvas = await html2canvas(target, {backgroundColor:'#FFFDF8', scale:2});
+  const link = document.createElement('a');
+  const who = document.getElementById('userSelect').value || '利用明細';
+  const date = document.getElementById('dateInput').value || todayStr();
+  link.download = `利用明細_${who}_${date}.png`;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+});
+
+// ---------- backup export / import ----------
+document.getElementById('exportBtn').addEventListener('click', ()=>{
+  const data = { users, transportPresets, quickPresets, exportedAt: new Date().toISOString() };
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `利用明細帳_バックアップ_${todayStr()}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+  showToast('バックアップを保存しました');
+});
+document.getElementById('importBtn').addEventListener('click', ()=>{
+  document.getElementById('importFile').click();
+});
+document.getElementById('importFile').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  try{
+    const text = await file.text();
+    const data = JSON.parse(text);
+    users = Array.isArray(data.users) ? data.users : users;
+    transportPresets = Array.isArray(data.transportPresets) ? data.transportPresets : transportPresets;
+    quickPresets = Array.isArray(data.quickPresets) ? data.quickPresets : quickPresets;
+    renderUserSelect(); renderTransportList(); renderQuickList(); renderQuickChips();
+    // try to re-sync to persistent storage too, in case it's working again
+    await saveAll();
+    showToast('バックアップを読み込みました');
+  }catch(err){
+    console.error('import error', err);
+    showToast('読み込みに失敗しました。ファイルを確認してください');
+  }
+  e.target.value = '';
+});
+
+// ---------- init ----------
+(async function init(){
+  await loadAll();
+  renderUserSelect();
+  renderTransportList();
+  renderQuickList();
+  renderQuickChips();
+  renderItemList();
+  updateReceipt();
+})();
+</script>
+</body>
+</html>
