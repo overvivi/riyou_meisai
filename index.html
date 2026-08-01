@@ -21,9 +21,9 @@
     color:var(--teal-deep);letter-spacing:.08em;margin:0;}
   header .sub{font-size:11px;color:var(--ink-soft);letter-spacing:.25em;margin-top:4px;}
   .tabs{display:flex;gap:6px;margin-bottom:16px;}
-  .tab-btn{flex:1;padding:10px 4px;background:var(--paper);border:1px solid var(--line);
+  .tab-btn{flex:1;padding:10px 2px;background:var(--paper);border:1px solid var(--line);
     border-bottom:none;border-radius:10px 10px 0 0;font-family:'Zen Kaku Gothic New',sans-serif;
-    font-weight:700;font-size:13.5px;color:var(--ink-soft);cursor:pointer;position:relative;top:1px;}
+    font-weight:700;font-size:11.5px;color:var(--ink-soft);cursor:pointer;position:relative;top:1px;}
   .tab-btn.active{background:var(--white);color:var(--teal-deep);border-color:var(--teal);
     box-shadow:0 -2px 0 var(--teal) inset;}
   .panel{display:none;}.panel.active{display:block;}
@@ -109,6 +109,7 @@
     <button class="tab-btn active" data-tab="main">利用明細</button>
     <button class="tab-btn" data-tab="transport">移動費</button>
     <button class="tab-btn" data-tab="quick">よく使う項目</button>
+    <button class="tab-btn" data-tab="users">利用者</button>
   </div>
 
   <!-- MAIN -->
@@ -125,11 +126,6 @@
           <input type="date" id="dateInput">
         </div>
       </div>
-      <div class="user-manage">
-        <input type="text" id="newUserInput" placeholder="新しい利用者名を追加">
-        <button class="btn-ghost" id="addUserBtn">追加</button>
-      </div>
-      <ul id="userManageList" style="list-style:none;margin:12px 0 0;padding:0;"></ul>
     </div>
 
     <div class="card">
@@ -216,6 +212,21 @@
     <div class="card">
       <h2>保存済みの項目</h2>
       <ul class="preset-list" id="quickList"></ul>
+    </div>
+  </div>
+
+  <!-- USERS -->
+  <div class="panel" id="panel-users">
+    <div class="card">
+      <h2>利用者を追加する</h2>
+      <div class="user-manage">
+        <input type="text" id="newUserInput" placeholder="新しい利用者名を追加">
+        <button class="btn-ghost" id="addUserBtn">追加</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>登録済みの利用者</h2>
+      <ul id="userManageList" style="list-style:none;margin:0;padding:0;"></ul>
     </div>
   </div>
 
