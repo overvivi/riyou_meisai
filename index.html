@@ -46,6 +46,9 @@
   .btn-ghost{background:transparent;color:var(--teal-deep);border:1px solid var(--teal);
     padding:9px 14px;border-radius:8px;font-weight:700;font-size:13px;}
   .btn-del{background:transparent;color:var(--coral);font-size:12px;font-weight:700;padding:4px 8px;}
+  .btn-edit{background:transparent;color:var(--teal);border:1px solid var(--teal);font-size:12px;font-weight:700;padding:4px 8px;border-radius:6px;}
+  .btn-edit:hover{background:var(--paper);}
+  .editing-highlight{outline:2px solid var(--gold);outline-offset:2px;}
   .chip-wrap{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;}
   .chip{background:var(--paper);border:1px solid var(--gold);color:var(--teal-deep);
     border-radius:999px;padding:8px 14px;font-size:13px;font-weight:700;white-space:nowrap;}
@@ -126,6 +129,7 @@
         <input type="text" id="newUserInput" placeholder="新しい利用者名を追加">
         <button class="btn-ghost" id="addUserBtn">追加</button>
       </div>
+      <ul id="userManageList" style="list-style:none;margin:12px 0 0;padding:0;"></ul>
     </div>
 
     <div class="card">
@@ -307,18 +311,82 @@ function renderUserSelect() {
     if (users.includes(prev)) sel.value = prev;
   }
   updateReceipt();
+  renderUserManageList();
+}
+
+function renderUserManageList() {
+  const ul = document.getElementById('userManageList');
+  if (!ul) return;
+  ul.innerHTML = '';
+  if (users.length === 0) {
+    ul.innerHTML = '<li class="item-empty" style="background:none;border:none;">利用者がいません</li>';
+    return;
+  }
+  users.forEach((u, idx) => {
+    const li = document.createElement('li');
+    li.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--paper);border:1px solid var(--line);border-radius:8px;margin-bottom:8px;font-size:14px;';
+    li.innerHTML = `<span style="font-weight:700">${escapeHtml(u)}</span>
+      <span style="display:flex;gap:6px">
+        <button class="btn-edit" data-idx="${idx}">編集</button>
+        <button class="btn-del" data-idx="${idx}">削除</button>
+      </span>`;
+    ul.appendChild(li);
+  });
+  ul.querySelectorAll('.btn-edit').forEach(b => {
+    b.addEventListener('click', () => {
+      const idx = Number(b.dataset.idx);
+      const input = document.getElementById('newUserInput');
+      const btn   = document.getElementById('addUserBtn');
+      input.value = users[idx];
+      input.classList.add('editing-highlight');
+      btn.textContent = '✏️ 上書き保存';
+      btn.dataset.editIdx = idx;
+      input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      input.focus();
+    });
+  });
+  ul.querySelectorAll('.btn-del').forEach(b => {
+    b.addEventListener('click', () => {
+      const idx = Number(b.dataset.idx);
+      const name = users[idx];
+      if (!confirm(`「${name}」を削除しますか？`)) return;
+      users.splice(idx, 1);
+      saveAll();
+      renderUserSelect();
+    });
+  });
 }
 
 document.getElementById('addUserBtn').addEventListener('click', () => {
   const input = document.getElementById('newUserInput');
-  const name = input.value.trim();
+  const btn   = document.getElementById('addUserBtn');
+  const name  = input.value.trim();
   if (!name) return;
-  if (!users.includes(name)) users.push(name);
-  saveAll();
+  if (btn.dataset.editIdx !== undefined) {
+    // 編集モード: 上書き
+    const idx = Number(btn.dataset.editIdx);
+    const oldName = users[idx];
+    users[idx] = name;
+    // セレクトの選択値も更新
+    delete btn.dataset.editIdx;
+    btn.textContent = '追加';
+    input.classList.remove('editing-highlight');
+    saveAll();
+    renderUserSelect();
+    // 編集前に選択していた人なら新名前を選択
+    const sel = document.getElementById('userSelect');
+    if (sel.value === oldName || sel.value === name) sel.value = name;
+    updateReceipt();
+  } else {
+    // 新規追加
+    if (!users.includes(name)) users.push(name);
+    saveAll();
+    input.value = '';
+    renderUserSelect();
+    document.getElementById('userSelect').value = name;
+    updateReceipt();
+  }
   input.value = '';
-  renderUserSelect();
-  document.getElementById('userSelect').value = name;
-  updateReceipt();
 });
 document.getElementById('userSelect').addEventListener('change', updateReceipt);
 
@@ -417,7 +485,10 @@ function renderTransportList() {
     transportPresets.forEach(p => {
       const li = document.createElement('li');
       li.innerHTML = `<span class="label">${escapeHtml(p.label)}<span class="price">${fmt(p.price)}</span></span>
-        <button class="btn-del" data-id="${p.id}">削除</button>`;
+        <span style="display:flex;gap:6px">
+          <button class="btn-edit" data-id="${p.id}">編集</button>
+          <button class="btn-del" data-id="${p.id}">削除</button>
+        </span>`;
       ul.appendChild(li);
     });
     ul.querySelectorAll('.btn-del').forEach(b => {
@@ -426,18 +497,46 @@ function renderTransportList() {
         saveAll(); renderTransportList(); renderQuickChips();
       });
     });
+    ul.querySelectorAll('.btn-edit').forEach(b => {
+      b.addEventListener('click', () => {
+        const p = transportPresets.find(x => x.id === b.dataset.id);
+        if (!p) return;
+        const labelEl = document.getElementById('tLabelInput');
+        const priceEl = document.getElementById('tPriceInput');
+        const btn     = document.getElementById('addTransportBtn');
+        labelEl.value = p.label;
+        priceEl.value = p.price;
+        labelEl.classList.add('editing-highlight');
+        priceEl.classList.add('editing-highlight');
+        btn.textContent = '✏️ 上書き保存';
+        btn.dataset.editId = p.id;
+        labelEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        labelEl.focus();
+      });
+    });
   }
 }
 
 document.getElementById('addTransportBtn').addEventListener('click', () => {
   const labelEl = document.getElementById('tLabelInput');
   const priceEl = document.getElementById('tPriceInput');
+  const btn     = document.getElementById('addTransportBtn');
   const label = labelEl.value.trim();
   const price = Number(priceEl.value);
   if (!label || !price) return;
-  transportPresets.push({ id: Date.now() + Math.random().toString(36).slice(2), label, price });
+  if (btn.dataset.editId) {
+    // 編集モード: 上書き
+    const idx = transportPresets.findIndex(x => x.id === btn.dataset.editId);
+    if (idx !== -1) transportPresets[idx] = { id: btn.dataset.editId, label, price };
+    delete btn.dataset.editId;
+    btn.textContent = '＋ 移動費を保存';
+  } else {
+    transportPresets.push({ id: Date.now() + Math.random().toString(36).slice(2), label, price });
+  }
   saveAll();
   labelEl.value = ''; priceEl.value = '';
+  labelEl.classList.remove('editing-highlight');
+  priceEl.classList.remove('editing-highlight');
   renderTransportList(); renderQuickChips();
 });
 
@@ -451,7 +550,10 @@ function renderQuickList() {
     quickPresets.forEach(p => {
       const li = document.createElement('li');
       li.innerHTML = `<span class="label">${escapeHtml(p.label)}<span class="price">${fmt(p.price)}</span></span>
-        <button class="btn-del" data-id="${p.id}">削除</button>`;
+        <span style="display:flex;gap:6px">
+          <button class="btn-edit" data-id="${p.id}">編集</button>
+          <button class="btn-del" data-id="${p.id}">削除</button>
+        </span>`;
       ul.appendChild(li);
     });
     ul.querySelectorAll('.btn-del').forEach(b => {
@@ -460,18 +562,46 @@ function renderQuickList() {
         saveAll(); renderQuickList(); renderQuickChips();
       });
     });
+    ul.querySelectorAll('.btn-edit').forEach(b => {
+      b.addEventListener('click', () => {
+        const p = quickPresets.find(x => x.id === b.dataset.id);
+        if (!p) return;
+        const labelEl = document.getElementById('qLabelInput');
+        const priceEl = document.getElementById('qPriceInput');
+        const btn     = document.getElementById('addQuickBtn');
+        labelEl.value = p.label;
+        priceEl.value = p.price;
+        labelEl.classList.add('editing-highlight');
+        priceEl.classList.add('editing-highlight');
+        btn.textContent = '✏️ 上書き保存';
+        btn.dataset.editId = p.id;
+        labelEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        labelEl.focus();
+      });
+    });
   }
 }
 
 document.getElementById('addQuickBtn').addEventListener('click', () => {
   const labelEl = document.getElementById('qLabelInput');
   const priceEl = document.getElementById('qPriceInput');
+  const btn     = document.getElementById('addQuickBtn');
   const label = labelEl.value.trim();
   const price = Number(priceEl.value);
   if (!label || !price) return;
-  quickPresets.push({ id: Date.now() + Math.random().toString(36).slice(2), label, price });
+  if (btn.dataset.editId) {
+    // 編集モード: 上書き
+    const idx = quickPresets.findIndex(x => x.id === btn.dataset.editId);
+    if (idx !== -1) quickPresets[idx] = { id: btn.dataset.editId, label, price };
+    delete btn.dataset.editId;
+    btn.textContent = '＋ 項目を保存';
+  } else {
+    quickPresets.push({ id: Date.now() + Math.random().toString(36).slice(2), label, price });
+  }
   saveAll();
   labelEl.value = ''; priceEl.value = '';
+  labelEl.classList.remove('editing-highlight');
+  priceEl.classList.remove('editing-highlight');
   renderQuickList(); renderQuickChips();
 });
 
