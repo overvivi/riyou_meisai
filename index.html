@@ -116,15 +116,13 @@
   <div class="panel active" id="panel-main">
     <div class="card">
       <h2>利用者・日付</h2>
-      <div style="display:flex;gap:10px;align-items:flex-end;">
-        <div style="flex:1.2">
-          <label>利用者名</label>
-          <select id="userSelect"></select>
-        </div>
-        <div style="flex:1">
-          <label>日付</label>
-          <input type="date" id="dateInput">
-        </div>
+      <div style="margin-bottom:10px">
+        <label>利用者名</label>
+        <select id="userSelect"></select>
+      </div>
+      <div>
+        <label>日付</label>
+        <input type="date" id="dateInput">
       </div>
     </div>
 
@@ -216,15 +214,13 @@
   <div class="panel" id="panel-report">
     <div class="card">
       <h2>基本情報</h2>
-      <div style="display:flex;gap:10px;margin-bottom:10px">
-        <div style="flex:1">
-          <label>利用者名</label>
-          <select id="rptUser"></select>
-        </div>
-        <div style="flex:1">
-          <label>日付</label>
-          <input type="date" id="rptDate">
-        </div>
+      <div style="margin-bottom:10px">
+        <label>利用者名</label>
+        <select id="rptUser"></select>
+      </div>
+      <div style="margin-bottom:10px">
+        <label>日付</label>
+        <input type="date" id="rptDate">
       </div>
       <div style="display:flex;gap:10px;margin-bottom:10px">
         <div style="flex:1">
@@ -355,37 +351,33 @@
 <script>
 const fmt = n => "¥" + (Number(n)||0).toLocaleString();
 const STORE_KEY = 'guide-helper-appdata';
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
 
 // ── State ──
 let users = [];
 let quickPresets = [];
 let currentItems = [];
+let medAlarms = [];
+let alarmInterval = null;
+let condBackup = '';
 
-// ── localStorage 保存・読み込み ──
+// ── Storage ──
 function saveAll() {
   try {
-    localStorage.setItem(STORE_KEY, JSON.stringify({
-      users, quickPresets,
-      savedAt: new Date().toISOString()
-    }));
+    localStorage.setItem(STORE_KEY, JSON.stringify({ users, quickPresets, savedAt: new Date().toISOString() }));
     showToast('💾 保存しました');
   } catch(e) {
-    console.error('save error', e);
-    showToast('⚠ 保存に失敗しました。バックアップをご利用ください');
+    showToast('⚠ 保存に失敗しました');
   }
 }
-
 function loadAll() {
   try {
     const raw = localStorage.getItem(STORE_KEY);
     if (!raw) return;
     const d = JSON.parse(raw);
-    users              = Array.isArray(d.users)              ? d.users              : [];
-
-    quickPresets       = Array.isArray(d.quickPresets)       ? d.quickPresets       : [];
-  } catch(e) {
-    console.error('load error', e);
-  }
+    users        = Array.isArray(d.users)        ? d.users        : [];
+    quickPresets = Array.isArray(d.quickPresets) ? d.quickPresets : [];
+  } catch(e) {}
 }
 
 // ── Toast ──
@@ -399,32 +391,40 @@ function showToast(msg) {
 }
 
 // ── Tabs ──
+function showPanel(tabId) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  const btn = document.querySelector(`.tab-btn[data-tab="${tabId}"]`);
+  const panel = document.getElementById('panel-' + tabId);
+  if (btn) btn.classList.add('active');
+  if (panel) panel.classList.add('active');
+  if (tabId === 'report') {
+    syncRptUsers();
+    syncMainToReport();
+    const rptDate = document.getElementById('rptDate');
+    if (!rptDate.value) rptDate.value = document.getElementById('dateInput').value || todayStr();
+  }
+}
 document.querySelectorAll('.tab-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-    btn.classList.add('active');
-    document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
-    // 報告メールタブに切り替えた時に利用者・日付を同期
-    if (btn.dataset.tab === 'report') {
-      syncRptUsers();
-      syncMainToReport();
-      const rptDate = document.getElementById('rptDate');
-      if (!rptDate.value) rptDate.value = document.getElementById('dateInput').value || todayStr();
-    }
-  });
+  btn.addEventListener('click', () => showPanel(btn.dataset.tab));
 });
 
-// ── Users ──
+// ── Utils ──
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ── Users (main tab) ──
 function renderUserSelect() {
   const sel = document.getElementById('userSelect');
   const prev = sel.value;
   sel.innerHTML = '';
   if (users.length === 0) {
-    const opt = document.createElement('option');
-    opt.textContent = '（利用者を追加してください）';
-    opt.value = '';
-    sel.appendChild(opt);
+    sel.innerHTML = '<option value="">（利用者タブで追加）</option>';
   } else {
     users.forEach(u => {
       const opt = document.createElement('option');
@@ -437,114 +437,14 @@ function renderUserSelect() {
   renderUserManageList();
   syncRptUsers();
 }
-
-function renderUserManageList() {
-  const ul = document.getElementById('userManageList');
-  if (!ul) return;
-  ul.innerHTML = '';
-  if (users.length === 0) {
-    ul.innerHTML = '<li class="item-empty" style="background:none;border:none;">利用者がいません</li>';
-    return;
-  }
-  users.forEach((u, idx) => {
-    const li = document.createElement('li');
-    li.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--paper);border:1px solid var(--line);border-radius:8px;margin-bottom:8px;font-size:14px;';
-    li.innerHTML = `<span style="font-weight:700">${escapeHtml(u)}</span>
-      <span style="display:flex;gap:6px">
-        <button class="btn-edit" data-idx="${idx}">編集</button>
-        <button class="btn-del" data-idx="${idx}">削除</button>
-      </span>`;
-    ul.appendChild(li);
-  });
-  ul.querySelectorAll('.btn-edit').forEach(b => {
-    b.addEventListener('click', () => {
-      const idx = Number(b.dataset.idx);
-      const input = document.getElementById('newUserInput');
-      const btn   = document.getElementById('addUserBtn');
-      input.value = users[idx];
-      input.classList.add('editing-highlight');
-      btn.textContent = '✏️ 上書き保存';
-      btn.dataset.editIdx = idx;
-      input.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      input.focus();
-    });
-  });
-  ul.querySelectorAll('.btn-del').forEach(b => {
-    b.addEventListener('click', () => {
-      const idx = Number(b.dataset.idx);
-      const name = users[idx];
-      if (!confirm(`「${name}」を削除しますか？`)) return;
-      users.splice(idx, 1);
-      saveAll();
-      renderUserSelect();
-    });
-  });
-}
-
-document.getElementById('addUserBtn').addEventListener('click', () => {
-  const input = document.getElementById('newUserInput');
-  const btn   = document.getElementById('addUserBtn');
-  const name  = input.value.trim();
-  if (!name) return;
-  if (btn.dataset.editIdx !== undefined) {
-    // 編集モード: 上書き
-    const idx = Number(btn.dataset.editIdx);
-    const oldName = users[idx];
-    users[idx] = name;
-    // セレクトの選択値も更新
-    delete btn.dataset.editIdx;
-    btn.textContent = '追加';
-    input.classList.remove('editing-highlight');
-    document.getElementById('cancelUserBtn').style.display = 'none';
-    saveAll();
-    renderUserSelect();
-    // 編集前に選択していた人なら新名前を選択
-    const sel = document.getElementById('userSelect');
-    if (sel.value === oldName || sel.value === name) sel.value = name;
-    updateReceipt();
-  } else {
-    // 新規追加
-    if (!users.includes(name)) users.push(name);
-    saveAll();
-    input.value = '';
-    renderUserSelect();
-    document.getElementById('userSelect').value = name;
-    updateReceipt();
-  }
-  input.value = '';
-});
-document.getElementById('cancelUserBtn').addEventListener('click', () => {
-  const input = document.getElementById('newUserInput');
-  const btn   = document.getElementById('addUserBtn');
-  input.value = '';
-  input.classList.remove('editing-highlight');
-  delete btn.dataset.editIdx;
-  btn.textContent = '追加';
-  document.getElementById('cancelUserBtn').style.display = 'none';
-});
-
-document.getElementById('userSelect').addEventListener('change', () => {
-  updateReceipt();
-  syncMainToReport();
-});
+document.getElementById('userSelect').addEventListener('change', () => { updateReceipt(); syncMainToReport(); });
 
 // ── Date / Cash ──
-function todayStr() {
-  const d = new Date();
-  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
-}
 document.getElementById('dateInput').value = todayStr();
-document.getElementById('dateInput').addEventListener('change', () => {
-  updateReceipt();
-  syncMainToReport();
-});
+document.getElementById('dateInput').addEventListener('change', () => { updateReceipt(); syncMainToReport(); });
 document.getElementById('cashInput').addEventListener('input', updateReceipt);
 
 // ── Item list ──
-function escapeHtml(s) {
-  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-}
-
 function renderItemList() {
   const ul = document.getElementById('itemList');
   ul.innerHTML = '';
@@ -553,9 +453,7 @@ function renderItemList() {
   } else {
     currentItems.forEach(it => {
       const li = document.createElement('li');
-      li.innerHTML = `<span>${escapeHtml(it.label)}</span>
-        <span><span class="amt">${fmt(it.price)}</span>
-        <button class="btn-del" data-id="${it.id}">削除</button></span>`;
+      li.innerHTML = `<span>${escapeHtml(it.label)}</span><span><span class="amt">${fmt(it.price)}</span> <button class="btn-del" data-id="${it.id}">削除</button></span>`;
       ul.appendChild(li);
     });
     ul.querySelectorAll('.btn-del').forEach(b => {
@@ -566,22 +464,19 @@ function renderItemList() {
     });
   }
 }
-
 function addItem(label, price) {
   if (!label || !price) return;
   currentItems.push({ id: Date.now() + Math.random().toString(36).slice(2), label, price: Number(price) });
   renderItemList(); updateReceipt();
 }
-
 document.getElementById('addItemBtn').addEventListener('click', () => {
-  const nameEl  = document.getElementById('itemNameInput');
-  const priceEl = document.getElementById('itemPriceInput');
-  addItem(nameEl.value.trim(), priceEl.value);
-  nameEl.value = ''; priceEl.value = '';
-  nameEl.focus();
+  const n = document.getElementById('itemNameInput');
+  const p = document.getElementById('itemPriceInput');
+  addItem(n.value.trim(), p.value);
+  n.value = ''; p.value = ''; n.focus();
 });
 
-// ── Quick chips ──
+// ── Quick chips toggle ──
 document.getElementById('quickChipsToggle').addEventListener('click', () => {
   const chips = document.getElementById('quickChips');
   const arrow = document.getElementById('quickChipsArrow');
@@ -593,15 +488,13 @@ document.getElementById('quickChipsToggle').addEventListener('click', () => {
 function renderQuickChips() {
   const wrap = document.getElementById('quickChips');
   wrap.innerHTML = '';
-  const all = [...quickPresets];
-  if (all.length === 0) {
-    wrap.innerHTML = '<span class="chip-empty">「移動費」「よく使う項目」タブで保存すると、ここにボタンが出ます</span>';
+  if (quickPresets.length === 0) {
+    wrap.innerHTML = '<span class="chip-empty">「よく使う項目」タブで保存するとここに出ます</span>';
     return;
   }
-  all.forEach(p => {
+  quickPresets.forEach(p => {
     const chip = document.createElement('button');
-    chip.className = 'chip';
-    chip.type = 'button';
+    chip.className = 'chip'; chip.type = 'button';
     chip.innerHTML = `${escapeHtml(p.label)}<span class="price">${fmt(p.price)}</span>`;
     chip.addEventListener('click', () => addItem(p.label, p.price));
     wrap.appendChild(chip);
@@ -610,165 +503,290 @@ function renderQuickChips() {
 
 // ── Receipt ──
 function updateReceipt() {
-  const who     = document.getElementById('userSelect').value || '利用者未選択';
-  const date    = document.getElementById('dateInput').value;
-  const cash    = Number(document.getElementById('cashInput').value) || 0;
-  const total   = currentItems.reduce((s, i) => s + Number(i.price), 0);
-  const balance = cash - total;
-  document.getElementById('rWho').textContent     = who;
-  document.getElementById('rDate').textContent    = date;
-  document.getElementById('rCash').textContent    = fmt(cash);
-  document.getElementById('rTotal').textContent   = '-' + fmt(total);
+  const who   = document.getElementById('userSelect').value || '利用者未選択';
+  const date  = document.getElementById('dateInput').value;
+  const cash  = Number(document.getElementById('cashInput').value) || 0;
+  const total = currentItems.reduce((s, i) => s + Number(i.price), 0);
+  const bal   = cash - total;
+  document.getElementById('rWho').textContent   = who;
+  document.getElementById('rDate').textContent  = date;
+  document.getElementById('rCash').textContent  = fmt(cash);
+  document.getElementById('rTotal').textContent = '-' + fmt(total);
   const balEl = document.getElementById('rBalance');
-  balEl.textContent = fmt(balance);
-  balEl.classList.toggle('negative', balance < 0);
+  balEl.textContent = fmt(bal);
+  balEl.classList.toggle('negative', bal < 0);
 }
 
-
-
-// ── Quick item presets ──
+// ── Quick presets ──
 function renderQuickList() {
   const ul = document.getElementById('quickList');
   ul.innerHTML = '';
   if (quickPresets.length === 0) {
     ul.innerHTML = '<li class="item-empty" style="background:none;border:none;">まだ保存された項目はありません</li>';
-  } else {
-    quickPresets.forEach(p => {
-      const li = document.createElement('li');
-      li.innerHTML = `<span class="label">${escapeHtml(p.label)}<span class="price">${fmt(p.price)}</span></span>
-        <span style="display:flex;gap:6px">
-          <button class="btn-edit" data-id="${p.id}">編集</button>
-          <button class="btn-del" data-id="${p.id}">削除</button>
-        </span>`;
-      ul.appendChild(li);
-    });
-    ul.querySelectorAll('.btn-del').forEach(b => {
-      b.addEventListener('click', () => {
-        quickPresets = quickPresets.filter(p => p.id !== b.dataset.id);
-        saveAll(); renderQuickList(); renderQuickChips();
-      });
-    });
-    ul.querySelectorAll('.btn-edit').forEach(b => {
-      b.addEventListener('click', () => {
-        const p = quickPresets.find(x => x.id === b.dataset.id);
-        if (!p) return;
-        const labelEl = document.getElementById('qLabelInput');
-        const priceEl = document.getElementById('qPriceInput');
-        const btn     = document.getElementById('addQuickBtn');
-        labelEl.value = p.label;
-        priceEl.value = p.price;
-        labelEl.classList.add('editing-highlight');
-        priceEl.classList.add('editing-highlight');
-        btn.textContent = '✏️ 上書き保存';
-        btn.dataset.editId = p.id;
-        document.getElementById('cancelQuickBtn').style.display = '';
-        labelEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        labelEl.focus();
-      });
-    });
+    return;
   }
+  quickPresets.forEach(p => {
+    const li = document.createElement('li');
+    li.innerHTML = `<span class="label">${escapeHtml(p.label)}<span class="price">${fmt(p.price)}</span></span><span style="display:flex;gap:6px"><button class="btn-edit" data-id="${p.id}">編集</button><button class="btn-del" data-id="${p.id}">削除</button></span>`;
+    ul.appendChild(li);
+  });
+  ul.querySelectorAll('.btn-del').forEach(b => {
+    b.addEventListener('click', () => {
+      quickPresets = quickPresets.filter(p => p.id !== b.dataset.id);
+      saveAll(); renderQuickList(); renderQuickChips();
+    });
+  });
+  ul.querySelectorAll('.btn-edit').forEach(b => {
+    b.addEventListener('click', () => {
+      const p = quickPresets.find(x => x.id === b.dataset.id); if (!p) return;
+      const lEl = document.getElementById('qLabelInput');
+      const pEl = document.getElementById('qPriceInput');
+      const btn = document.getElementById('addQuickBtn');
+      lEl.value = p.label; pEl.value = p.price;
+      lEl.classList.add('editing-highlight'); pEl.classList.add('editing-highlight');
+      btn.textContent = '✏️ 上書き保存'; btn.dataset.editId = p.id;
+      document.getElementById('cancelQuickBtn').style.display = '';
+      lEl.scrollIntoView({ behavior: 'smooth', block: 'center' }); lEl.focus();
+    });
+  });
 }
 
-document.getElementById('cancelQuickBtn').addEventListener('click', () => {
-  const labelEl = document.getElementById('qLabelInput');
-  const priceEl = document.getElementById('qPriceInput');
-  const btn     = document.getElementById('addQuickBtn');
-  labelEl.value = ''; priceEl.value = '';
-  labelEl.classList.remove('editing-highlight');
-  priceEl.classList.remove('editing-highlight');
-  delete btn.dataset.editId;
-  btn.textContent = '＋ 項目を保存';
-  document.getElementById('cancelQuickBtn').style.display = 'none';
-});
-
 document.getElementById('addQuickBtn').addEventListener('click', () => {
-  const labelEl = document.getElementById('qLabelInput');
-  const priceEl = document.getElementById('qPriceInput');
-  const btn     = document.getElementById('addQuickBtn');
-  const label = labelEl.value.trim();
-  const price = Number(priceEl.value);
+  const lEl = document.getElementById('qLabelInput');
+  const pEl = document.getElementById('qPriceInput');
+  const btn = document.getElementById('addQuickBtn');
+  const label = lEl.value.trim(); const price = Number(pEl.value);
   if (!label || !price) return;
   if (btn.dataset.editId) {
-    // 編集モード: 上書き
     const idx = quickPresets.findIndex(x => x.id === btn.dataset.editId);
     if (idx !== -1) quickPresets[idx] = { id: btn.dataset.editId, label, price };
-    delete btn.dataset.editId;
-    btn.textContent = '＋ 項目を保存';
+    delete btn.dataset.editId; btn.textContent = '＋ 項目を保存';
   } else {
     quickPresets.push({ id: Date.now() + Math.random().toString(36).slice(2), label, price });
   }
-  saveAll();
-  labelEl.value = ''; priceEl.value = '';
-  labelEl.classList.remove('editing-highlight');
-  priceEl.classList.remove('editing-highlight');
+  saveAll(); lEl.value = ''; pEl.value = '';
+  lEl.classList.remove('editing-highlight'); pEl.classList.remove('editing-highlight');
   document.getElementById('cancelQuickBtn').style.display = 'none';
   renderQuickList(); renderQuickChips();
 });
 
-
-
-// ── Backup export / import ──
-document.getElementById('exportBtn').addEventListener('click', () => {
-  const data = { users, quickPresets, exportedAt: new Date().toISOString() };
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const url  = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `利用明細帳_バックアップ_${todayStr()}.json`;
-  link.click();
-  URL.revokeObjectURL(url);
-  showToast('バックアップを保存しました');
+document.getElementById('cancelQuickBtn').addEventListener('click', () => {
+  const lEl = document.getElementById('qLabelInput');
+  const pEl = document.getElementById('qPriceInput');
+  const btn = document.getElementById('addQuickBtn');
+  lEl.value = ''; pEl.value = '';
+  lEl.classList.remove('editing-highlight'); pEl.classList.remove('editing-highlight');
+  delete btn.dataset.editId; btn.textContent = '＋ 項目を保存';
+  document.getElementById('cancelQuickBtn').style.display = 'none';
 });
 
-document.getElementById('importBtn').addEventListener('click', () => {
-  document.getElementById('importFile').click();
-});
-
-document.getElementById('importFile').addEventListener('change', async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  try {
-    const text = await file.text();
-    const data = JSON.parse(text);
-    users            = Array.isArray(data.users)            ? data.users            : users;
-    quickPresets     = Array.isArray(data.quickPresets)     ? data.quickPresets     : quickPresets;
-    saveAll();
-    renderUserSelect(); renderQuickList(); renderQuickChips();
-    showToast('バックアップを読み込みました');
-  } catch(err) {
-    showToast('読み込みに失敗しました。ファイルを確認してください');
+// ── Users (manage tab) ──
+function renderUserManageList() {
+  const ul = document.getElementById('userManageList'); if (!ul) return;
+  ul.innerHTML = '';
+  if (users.length === 0) {
+    ul.innerHTML = '<li class="item-empty" style="background:none;border:none;">利用者がいません</li>'; return;
   }
-  e.target.value = '';
+  users.forEach((u, idx) => {
+    const li = document.createElement('li');
+    li.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--paper);border:1px solid var(--line);border-radius:8px;margin-bottom:8px;font-size:14px;';
+    li.innerHTML = `<span style="font-weight:700">${escapeHtml(u)}</span><span style="display:flex;gap:6px"><button class="btn-edit" data-idx="${idx}">編集</button><button class="btn-del" data-idx="${idx}">削除</button></span>`;
+    ul.appendChild(li);
+  });
+  ul.querySelectorAll('.btn-edit').forEach(b => {
+    b.addEventListener('click', () => {
+      const idx = Number(b.dataset.idx);
+      const input = document.getElementById('newUserInput');
+      const btn   = document.getElementById('addUserBtn');
+      input.value = users[idx]; input.classList.add('editing-highlight');
+      btn.textContent = '✏️ 上書き保存'; btn.dataset.editIdx = idx;
+      document.getElementById('cancelUserBtn').style.display = '';
+      input.scrollIntoView({ behavior: 'smooth', block: 'center' }); input.focus();
+    });
+  });
+  ul.querySelectorAll('.btn-del').forEach(b => {
+    b.addEventListener('click', () => {
+      const idx = Number(b.dataset.idx);
+      if (!confirm(`「${users[idx]}」を削除しますか？`)) return;
+      users.splice(idx, 1); saveAll(); renderUserSelect();
+    });
+  });
+}
+
+document.getElementById('addUserBtn').addEventListener('click', () => {
+  const input = document.getElementById('newUserInput');
+  const btn   = document.getElementById('addUserBtn');
+  const name  = input.value.trim(); if (!name) return;
+  if (btn.dataset.editIdx !== undefined) {
+    const idx = Number(btn.dataset.editIdx); const old = users[idx];
+    users[idx] = name;
+    delete btn.dataset.editIdx; btn.textContent = '追加';
+    input.classList.remove('editing-highlight');
+    document.getElementById('cancelUserBtn').style.display = 'none';
+    saveAll(); renderUserSelect();
+    const sel = document.getElementById('userSelect');
+    if (sel.value === old || sel.value === name) sel.value = name;
+    updateReceipt();
+  } else {
+    if (!users.includes(name)) users.push(name);
+    saveAll(); input.value = ''; renderUserSelect();
+    document.getElementById('userSelect').value = name; updateReceipt();
+  }
+  input.value = '';
 });
+
+document.getElementById('cancelUserBtn').addEventListener('click', () => {
+  const input = document.getElementById('newUserInput');
+  const btn   = document.getElementById('addUserBtn');
+  input.value = ''; input.classList.remove('editing-highlight');
+  delete btn.dataset.editIdx; btn.textContent = '追加';
+  document.getElementById('cancelUserBtn').style.display = 'none';
+});
+
+// ── 体調欄 削除・戻す・コピー ──
+const PROMPT = `以下の活動報告書の下書きを、指定のルールに従って整えてください。
+
+【ルール】
+■ 文体・表現
+・「です・ます調（敬体）」で統一する。
+・時系列に沿って自然な流れで記載する。
+・「〜される」ではなく「〜されました」「〜されています」など自然な敬語にする。
+・「引き継ぎし」は「引き継ぎを行い」など自然な形に整える。
+・一文が長くなりすぎないよう、適度に区切る。
+
+■ 行動の書き方
+・出発→移動→昼食→活動→帰路→帰所・帰宅→引き継ぎ→支援終了の流れを基本とする。
+・移動は「電車を乗り継いで」「バスを利用して」「徒歩で」「車椅子で」など移動手段を明記する。
+・「向かわれました」「移動されました」を適宜使い分け、同じ表現が続きすぎないようにする。
+
+■ 食事・買い物
+・食事は「昼食として○○を購入され完食。」「おやつとして○○を購入され完食。」の形で統一する。
+・飲み物は「購入され完飲。」
+・買い物は「○○を購入されました。」とする。
+
+■ イベント・活動
+・「○○を楽しまれる」ではなく「○○を楽しまれました。」「○○を鑑賞されました。」「○○に参加されました。」など自然な表現にする。
+
+■ 服薬・健康
+・服薬は「（11:30服薬）」のように時刻のみを括弧書きで入れる。
+・GHや親御様からの申し送りは冒頭に記載する。例：「朝、GHの職員様より『変わりなく』と引き継ぎを受け出発。」
+
+■ 固有名詞・表記
+・寝屋川駅 → 寝屋川市駅
+・万博記念公園の駅は「万博記念公園駅」
+・餃子の王将／EXPOCITY／あべのキューズモール／あべのハルカス（正式名称に統一）
+・「だいどう豊里駅」など誤字・変換ミスは修正する。
+
+■ 最後の締め方
+・GHの場合：「駅から車椅子でGHまで帰所し、スタッフ様へ当日の様子を引き継ぎし、支援を終了しています。」
+・自宅の場合：「徒歩で帰宅。親御様へ当日の様子を引き継ぎし、支援を終了しています。」
+
+■ 全体の方針
+・必要以上に表現を変えず、元の内容を忠実に残す。
+・誤字・脱字・不自然な日本語のみ修正する。
+・福祉サービスの活動報告書として、そのまま提出できる文章を目指す。
+
+【下書き】
+`;
+
+document.getElementById('condClearBtn').addEventListener('click', () => {
+  const ta = document.getElementById('rptCondition');
+  if (!ta.value.trim()) return;
+  condBackup = ta.value; ta.value = '';
+  document.getElementById('condUndoBtn').disabled = false;
+});
+document.getElementById('condUndoBtn').addEventListener('click', () => {
+  const ta = document.getElementById('rptCondition');
+  ta.value = condBackup; condBackup = '';
+  document.getElementById('condUndoBtn').disabled = true;
+});
+document.getElementById('condCopyBtn').addEventListener('click', async () => {
+  const ta  = document.getElementById('rptCondition');
+  const text = ta.value.trim();
+  if (!text) { showToast('体調や様子を入力してください'); return; }
+  const msg = document.getElementById('condCopyMsg');
+  try {
+    await navigator.clipboard.writeText(PROMPT + text);
+    msg.textContent = '✅ コピーしました！ChatGPTに貼り付けてください';
+    msg.style.display = 'block';
+    setTimeout(() => { window.location.href = 'chatgpt://'; }, 400);
+  } catch(e) {
+    msg.textContent = '⚠ 自動コピーできませんでした。手動でコピーしてください';
+    msg.style.display = 'block'; ta.select();
+  }
+  setTimeout(() => { msg.style.display = 'none'; }, 4000);
+});
+
+// ── 服薬アラーム ──
+document.getElementById('medTimeInput').addEventListener('change', () => {
+  const val     = document.getElementById('medTimeInput').value;
+  const hint    = document.getElementById('medTimeHint');
+  const clockBtn = document.getElementById('openClockBtn');
+  if (!val) {
+    hint.style.display = 'none'; clockBtn.style.display = 'none';
+    medAlarms = [];
+    if (alarmInterval) { clearInterval(alarmInterval); alarmInterval = null; }
+    return;
+  }
+  medAlarms = [{ time: val, triggered: false }];
+  if (isIOS) {
+    hint.textContent = '⏰ 下のボタンから時計アプリでアラームをセットしてください';
+    hint.style.display = 'block'; clockBtn.style.display = 'inline-flex';
+  } else {
+    hint.textContent = '🔔 アプリを開いている間、時間になると音とバイブでお知らせします';
+    hint.style.display = 'block'; clockBtn.style.display = 'none';
+    startAlarmWatch();
+  }
+});
+document.getElementById('openClockBtn').addEventListener('click', () => {
+  window.location.href = 'clock-alarm://';
+});
+function startAlarmWatch() {
+  if (alarmInterval) return;
+  alarmInterval = setInterval(() => {
+    const now = new Date();
+    const hhmm = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+    medAlarms.forEach(a => {
+      if (a.time === hhmm && !a.triggered) { a.triggered = true; fireAlarm(a.time); }
+    });
+  }, 10000);
+}
+function fireAlarm(time) {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    function beep(freq, start, dur) {
+      const o = ctx.createOscillator(); const g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.frequency.value = freq; o.type = 'sine';
+      g.gain.setValueAtTime(0.6, ctx.currentTime + start);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + dur);
+      o.start(ctx.currentTime + start); o.stop(ctx.currentTime + start + dur + 0.1);
+    }
+    beep(880,0,0.3); beep(880,0.4,0.3); beep(1100,0.8,0.5);
+    beep(880,1.5,0.3); beep(880,1.9,0.3); beep(1100,2.3,0.5);
+  } catch(e) {}
+  if (navigator.vibrate) navigator.vibrate([400,200,400,200,600]);
+  setTimeout(() => alert(`💊 服薬の時間です！\n${time} の服薬をご確認ください。`), 100);
+}
 
 // ── 報告メール ──
+function syncRptUsers() {
+  const sel = document.getElementById('rptUser'); if (!sel) return;
+  const prev = sel.value; sel.innerHTML = '';
+  if (users.length === 0) {
+    sel.innerHTML = '<option value="">（利用者タブで追加）</option>';
+  } else {
+    users.forEach(u => { const o = document.createElement('option'); o.value=u; o.textContent=u; sel.appendChild(o); });
+    if (users.includes(prev)) sel.value = prev;
+  }
+}
 function syncMainToReport() {
-  // 利用明細の利用者・日付を報告メールに反映（入力済みの場合は上書きしない）
   const mainUser = document.getElementById('userSelect').value;
   const mainDate = document.getElementById('dateInput').value;
   const rptUser  = document.getElementById('rptUser');
   const rptDate  = document.getElementById('rptDate');
   if (rptUser && mainUser) rptUser.value = mainUser;
   if (rptDate && mainDate) rptDate.value = mainDate;
-}
-
-function syncRptUsers() {
-  const sel = document.getElementById('rptUser');
-  if (!sel) return;
-  const prev = sel.value;
-  sel.innerHTML = '';
-  if (users.length === 0) {
-    const opt = document.createElement('option');
-    opt.value = ''; opt.textContent = '（利用者タブで追加）';
-    sel.appendChild(opt);
-  } else {
-    users.forEach(u => {
-      const opt = document.createElement('option');
-      opt.value = u; opt.textContent = u;
-      sel.appendChild(opt);
-    });
-    if (users.includes(prev)) sel.value = prev;
-  }
 }
 
 function buildReportText() {
@@ -782,32 +800,23 @@ function buildReportText() {
   const condition = document.getElementById('rptCondition').value.trim() || '（内容）';
   const water     = document.getElementById('rptWater').value  || '__';
   const urine     = document.getElementById('rptUrine').value  || '__';
-
   const stool     = document.getElementById('rptStool').value  || '__';
   const request   = document.getElementById('rptRequest').value.trim() || 'なし';
   const noteVal   = document.getElementById('rptNote').value.trim()    || 'なし';
+  const medTime   = document.getElementById('medTimeInput').value;
 
-  // 件名: 20260726利用者名
   let subjectDate = ''; let dateLabel = '（日付）';
   if (dateVal) {
     const d = new Date(dateVal);
     const y = d.getFullYear();
     const m = String(d.getMonth()+1).padStart(2,'0');
     const day = String(d.getDate()).padStart(2,'0');
-    const dow = DOW[d.getDay()];
     subjectDate = `${y}${m}${day}`;
-    dateLabel = `${d.getMonth()+1}月${d.getDate()}日(${dow})`;
+    dateLabel = `${d.getMonth()+1}月${d.getDate()}日(${DOW[d.getDay()]})`;
   }
-  const subject = `${subjectDate}${userName}`;
-
-  // 本文1行目: 7月26日(日) 利用者名 10:00-17:00 ヘルパー名
+  const subject   = `${subjectDate}${userName}`;
   const firstLine = `${dateLabel} ${userName} ${start}-${end} ${helper}`;
-
-  // 服薬時間をメール用に整形
-  const medLine = medAlarms.length > 0
-    ? '
-' + medAlarms.map(a => `服薬${a.time}`).join('　')
-    : '';
+  const medLine   = medTime ? `\n服薬${medTime}` : '';
 
   const body =
 `${firstLine}
@@ -835,114 +844,24 @@ ${noteVal}`;
 
 document.getElementById('rptPreviewBtn').addEventListener('click', () => {
   const { subject, body } = buildReportText();
-  const to = document.getElementById('rptTo').value.trim();
-
-  document.getElementById('rptPreviewText').textContent = `件名：${subject}
-
-${body}`;
-
-  // GmailアプリのURLスキームとWebフォールバックを保存
+  const to = document.getElementById('rptToDisplay').textContent.trim();
+  document.getElementById('rptPreviewText').textContent = `件名：${subject}\n${'─'.repeat(20)}\n${body}`;
   const gmailApp = `googlegmail://co?to=${encodeURIComponent(to)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  const gmailWeb = `https://mail.google.com/mail/?view=cm&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-
-  document.getElementById('rptMailtoLink').onclick = () => {
-    window.location.href = gmailApp;
-  };
+  document.getElementById('rptMailtoLink').onclick = () => { window.location.href = gmailApp; };
   document.getElementById('rptPreviewCard').style.display = 'block';
   document.getElementById('rptPreviewCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
 });
 
-// ── 服薬アラーム ──
-let medAlarms = []; // [{time:'HH:MM', triggered:false}]
-let alarmInterval = null;
-
-const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-
-// renderMedTimeList 削除（1件のみ対応に変更）
-
-
-
-// 服薬時間入力：変更時にiPhoneボタン表示＆Android用アラームセット
-document.getElementById('medTimeInput').addEventListener('change', () => {
-  const val = document.getElementById('medTimeInput').value;
-  const hint = document.getElementById('medTimeHint');
-  const clockBtn = document.getElementById('openClockBtn');
-  if (!val) {
-    hint.style.display = 'none';
-    clockBtn.style.display = 'none';
-    medAlarms = [];
-    if (alarmInterval) { clearInterval(alarmInterval); alarmInterval = null; }
-    return;
-  }
-  medAlarms = [{ time: val, triggered: false }];
-  if (isIOS) {
-    hint.textContent = '⏰ 下のボタンから時計アプリでアラームをセットしてください';
-    hint.style.display = 'block';
-    clockBtn.style.display = 'inline-flex';
-  } else {
-    hint.textContent = '🔔 アプリを開いている間、時間になると音とバイブでお知らせします';
-    hint.style.display = 'block';
-    clockBtn.style.display = 'none';
-    startAlarmWatch();
-  }
-});
-
-document.getElementById('openClockBtn').addEventListener('click', () => {
-  window.location.href = 'clock-alarm://';
-});
-
-function startAlarmWatch() {
-  if (alarmInterval) return;
-  alarmInterval = setInterval(() => {
-    const now = new Date();
-    const hhmm = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
-    medAlarms.forEach(a => {
-      if (a.time === hhmm && !a.triggered) {
-        a.triggered = true;
-        fireAlarm(a.time);
-      }
-    });
-  }, 10000); // 10秒ごとにチェック
-}
-
-function fireAlarm(time) {
-  // 音を鳴らす
-  try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    function beep(freq, start, dur) {
-      const o = ctx.createOscillator();
-      const g = ctx.createGain();
-      o.connect(g); g.connect(ctx.destination);
-      o.frequency.value = freq;
-      o.type = 'sine';
-      g.gain.setValueAtTime(0.6, ctx.currentTime + start);
-      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + dur);
-      o.start(ctx.currentTime + start);
-      o.stop(ctx.currentTime + start + dur + 0.1);
-    }
-    beep(880, 0, 0.3); beep(880, 0.4, 0.3); beep(1100, 0.8, 0.5);
-    beep(880, 1.5, 0.3); beep(880, 1.9, 0.3); beep(1100, 2.3, 0.5);
-  } catch(e) {}
-  // バイブ
-  if (navigator.vibrate) navigator.vibrate([400,200,400,200,600]);
-  // アラートで通知
-  setTimeout(() => {
-    alert(`💊 服薬の時間です！\n${time} の服薬をご確認ください。`);
-  }, 100);
-}
-
-// 送信先編集
+// ── 送信先編集 ──
 document.getElementById('rptToEditBtn').addEventListener('click', () => {
   const display = document.getElementById('rptToDisplay');
-  const input   = document.getElementById('rptTo');
-  input.value   = display.textContent.trim();
+  document.getElementById('rptTo').value = display.textContent.trim();
   document.getElementById('rptToEditArea').style.display = 'block';
   document.getElementById('rptToEditBtn').style.display  = 'none';
-  input.focus();
+  document.getElementById('rptTo').focus();
 });
 document.getElementById('rptToSaveBtn').addEventListener('click', () => {
-  const input = document.getElementById('rptTo');
-  const val   = input.value.trim();
+  const val = document.getElementById('rptTo').value.trim();
   if (val) document.getElementById('rptToDisplay').textContent = val;
   document.getElementById('rptToEditArea').style.display = 'none';
   document.getElementById('rptToEditBtn').style.display  = '';
@@ -952,55 +871,27 @@ document.getElementById('rptToCancelBtn').addEventListener('click', () => {
   document.getElementById('rptToEditBtn').style.display  = '';
 });
 
-// ── 体調欄 削除・戻す・コピー ──
-let condBackup = '';
-
-document.getElementById('condClearBtn').addEventListener('click', () => {
-  const ta = document.getElementById('rptCondition');
-  if (!ta.value.trim()) return;
-  condBackup = ta.value;
-  ta.value = '';
-  document.getElementById('condUndoBtn').disabled = false;
+// ── Backup ──
+document.getElementById('exportBtn').addEventListener('click', () => {
+  const data = { users, quickPresets, exportedAt: new Date().toISOString() };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url; link.download = `利用明細帳_バックアップ_${todayStr()}.json`; link.click();
+  URL.revokeObjectURL(url); showToast('バックアップを保存しました');
 });
-
-document.getElementById('condUndoBtn').addEventListener('click', () => {
-  const ta = document.getElementById('rptCondition');
-  ta.value = condBackup;
-  condBackup = '';
-  document.getElementById('condUndoBtn').disabled = true;
-});
-
-document.getElementById('condCopyBtn').addEventListener('click', async () => {
-  const ta   = document.getElementById('rptCondition');
-  const text = ta.value.trim();
-  if (!text) {
-    showToast('体調や様子を入力してください');
-    return;
-  }
-  const prompt = '以下の活動報告書の下書きを、指定のルールに従って整えてください。\n\n【ルール】\n■ 文体・表現\n・「です・ます調（敬体）」で統一する。\n・時系列に沿って自然な流れで記載する。\n・「〜される」ではなく「〜されました」「〜されています」など自然な敬語にする。\n・「引き継ぎし」は「引き継ぎを行い」など自然な形に整える。\n・一文が長くなりすぎないよう、適度に区切る。\n\n■ 行動の書き方\n・出発→移動→昼食→活動→帰路→帰所・帰宅→引き継ぎ→支援終了の流れを基本とする。\n・移動は「電車を乗り継いで」「バスを利用して」「徒歩で」「車椅子で」など移動手段を明記する。\n・「向かわれました」「移動されました」を適宜使い分け、同じ表現が続きすぎないようにする。\n\n■ 食事・買い物\n・食事は「昼食として○○を購入され完食。」「おやつとして○○を購入され完食。」の形で統一する。\n・飲み物は「購入され完飲。」\n・買い物は「○○を購入されました。」とする。\n\n■ イベント・活動\n・「○○を楽しまれる」ではなく「○○を楽しまれました。」「○○を鑑賞されました。」「○○に参加されました。」など自然な表現にする。\n\n■ 服薬・健康\n・服薬は「（11:30服薬）」のように時刻のみを括弧書きで入れる。\n・GHや親御様からの申し送りは冒頭に記載する。例：「朝、GHの職員様より『変わりなく』と引き継ぎを受け出発。」\n\n■ 固有名詞・表記\n・寝屋川駅 → 寝屋川市駅\n・万博記念公園の駅は「万博記念公園駅」\n・餃子の王将／EXPOCITY／あべのキューズモール／あべのハルカス（正式名称に統一）\n・「だいどう豊里駅」など誤字・変換ミスは修正する。\n\n■ 最後の締め方\n・GHの場合：「駅から車椅子でGHまで帰所し、スタッフ様へ当日の様子を引き継ぎし、支援を終了しています。」\n・自宅の場合：「徒歩で帰宅。親御様へ当日の様子を引き継ぎし、支援を終了しています。」\n\n■ 全体の方針\n・必要以上に表現を変えず、元の内容を忠実に残す。\n・誤字・脱字・不自然な日本語のみ修正する。\n・福祉サービスの活動報告書として、そのまま提出できる文章を目指す。\n\n【下書き】\n' + text;
-  const msg = document.getElementById('condCopyMsg');
+document.getElementById('importBtn').addEventListener('click', () => document.getElementById('importFile').click());
+document.getElementById('importFile').addEventListener('change', async (e) => {
+  const file = e.target.files[0]; if (!file) return;
   try {
-    await navigator.clipboard.writeText(prompt);
-    msg.textContent = '✅ コピーしました！ChatGPTに貼り付けてください';
-    msg.style.display = 'block';
-    // ChatGPTアプリへ誘導（アプリがあれば開く、なければWebブラウザ）
-    setTimeout(() => {
-      window.location.href = 'chatgpt://';
-      // アプリが開かなかった場合のフォールバック
-      setTimeout(() => {
-        window.open('https://chat.openai.com', '_blank');
-      }, 1500);
-    }, 400);
-  } catch(e) {
-    // クリップボードAPIが使えない場合
-    msg.textContent = '⚠ 自動コピーできませんでした。下のテキストを手動でコピーしてください';
-    msg.style.display = 'block';
-    ta.select();
-  }
-  setTimeout(() => { msg.style.display = 'none'; }, 4000);
+    const d = JSON.parse(await file.text());
+    users        = Array.isArray(d.users)        ? d.users        : users;
+    quickPresets = Array.isArray(d.quickPresets) ? d.quickPresets : quickPresets;
+    saveAll(); renderUserSelect(); renderQuickList(); renderQuickChips();
+    showToast('バックアップを読み込みました');
+  } catch(e) { showToast('読み込みに失敗しました'); }
+  e.target.value = '';
 });
-
-
 
 // ── Init ──
 loadAll();
@@ -1009,6 +900,7 @@ renderQuickList();
 renderQuickChips();
 renderItemList();
 updateReceipt();
+
 </script>
 </body>
 </html>
