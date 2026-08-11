@@ -333,10 +333,10 @@
       <h2>メールプレビュー</h2>
       <div id="rptPreviewText"
         style="white-space:pre-wrap;font-size:13px;line-height:1.8;color:var(--ink);background:var(--paper);padding:14px;border-radius:8px;border:1px solid var(--line);margin-bottom:12px;"></div>
-      <a id="rptMailtoLink" href="#"
-        style="display:block;text-align:center;background:var(--teal);color:var(--white);padding:13px;border-radius:10px;font-weight:700;font-size:14px;text-decoration:none">
+      <button id="rptMailtoLink"
+        style="width:100%;text-align:center;background:var(--teal);color:var(--white);padding:13px;border-radius:10px;font-weight:700;font-size:14px;border:none;cursor:pointer">
         📨 Gmailで送信する
-      </a>
+      </button>
     </div>
   </div>
 
@@ -903,8 +903,18 @@ document.getElementById('rptPreviewBtn').addEventListener('click', () => {
 
 ${body}`;
 
-  const mailto = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  document.getElementById('rptMailtoLink').href = mailto;
+  // GmailアプリのURLスキームとWebフォールバックを保存
+  const gmailApp = `googlegmail://co?to=${encodeURIComponent(to)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  const gmailWeb = `https://mail.google.com/mail/?view=cm&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+  document.getElementById('rptMailtoLink').onclick = () => {
+    // まずGmailアプリを試みる
+    window.location.href = gmailApp;
+    // アプリが入っていない場合はGmailウェブを開く
+    setTimeout(() => {
+      window.open(gmailWeb, '_blank');
+    }, 1500);
+  };
   document.getElementById('rptPreviewCard').style.display = 'block';
   document.getElementById('rptPreviewCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
 });
