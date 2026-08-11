@@ -107,7 +107,6 @@
 
   <div class="tabs">
     <button class="tab-btn active" data-tab="main">利用明細</button>
-    <button class="tab-btn" data-tab="transport">移動費</button>
     <button class="tab-btn" data-tab="quick">よく使う項目</button>
     <button class="tab-btn" data-tab="users">利用者</button>
     <button class="tab-btn" data-tab="report">報告メール</button>
@@ -149,7 +148,12 @@
       <div class="row row2">
         <button class="btn-primary" id="addItemBtn" style="width:100%">＋ 明細に追加</button>
       </div>
-      <div id="quickChips" class="chip-wrap"></div>
+      <div id="quickChipsWrap" style="margin-top:12px">
+        <button id="quickChipsToggle" class="btn-ghost btn-sm" style="width:100%;text-align:left;display:flex;justify-content:space-between;align-items:center">
+          <span>⚡ よく使う項目</span><span id="quickChipsArrow">▼</span>
+        </button>
+        <div id="quickChips" class="chip-wrap" style="display:none;margin-top:8px"></div>
+      </div>
       <ul class="item-list" id="itemList"></ul>
     </div>
 
@@ -165,30 +169,7 @@
 
   </div>
 
-  <!-- TRANSPORT -->
-  <div class="panel" id="panel-transport">
-    <div class="card">
-      <h2>移動費を保存する</h2>
-      <div>
-        <label>区間・内容（例：梅田駅→難波駅）</label>
-        <input type="text" id="tLabelInput" placeholder="〇〇駅→〇〇駅">
-      </div>
-      <div class="row row2">
-        <div>
-          <label>金額</label>
-          <input type="number" id="tPriceInput" placeholder="円" inputmode="numeric">
-        </div>
-      </div>
-      <div class="row row2" style="gap:8px">
-        <button class="btn-primary" id="addTransportBtn" style="flex:1">＋ 移動費を保存</button>
-        <button class="btn-ghost" id="cancelTransportBtn" style="display:none">キャンセル</button>
-      </div>
-    </div>
-    <div class="card">
-      <h2>保存済みの移動費</h2>
-      <ul class="preset-list" id="transportList"></ul>
-    </div>
-  </div>
+
 
   <!-- QUICK ITEMS -->
   <div class="panel" id="panel-quick">
@@ -259,6 +240,7 @@
         <label>ヘルパー名</label>
         <input type="text" id="rptHelper" placeholder="例）ヘルパー名">
       </div>
+
     </div>
 
     <div class="card">
@@ -273,14 +255,19 @@
     <div class="card">
       <h2>体調や様子</h2>
       <div>
-        <label>内容</label>
-        <textarea id="rptCondition" rows="5" placeholder="例）朝、GHのスタッフ様より引き継ぎを受け出発。"
+        <textarea id="rptCondition" rows="6" placeholder="例）朝GHのスタッフ様より引き継ぎを受け出発。"
           style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:15px;background:var(--paper);color:var(--ink);resize:vertical"></textarea>
       </div>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+        <button class="btn-ghost" id="condCopyBtn" style="flex:2;font-size:13px">📋 コピーしてChatGPTへ</button>
+        <button class="btn-ghost" id="condUndoBtn" style="flex:1;font-size:13px;color:var(--gold);border-color:var(--gold)" disabled>↩ 戻す</button>
+        <button class="btn-ghost" id="condClearBtn" style="flex:1;font-size:13px;color:var(--coral);border-color:var(--coral)">🗑 削除</button>
+      </div>
+      <div id="condCopyMsg" style="display:none;margin-top:8px;font-size:12px;color:var(--teal-deep);text-align:center;padding:6px;background:var(--paper);border-radius:6px"></div>
     </div>
 
     <div class="card">
-      <h2>水分・排泄</h2>
+      <h2>水分・排泄・服薬</h2>
       <div style="margin-bottom:10px">
         <label>水分摂取量（ml）</label>
         <input type="number" id="rptWater" placeholder="例）1200" inputmode="numeric">
@@ -289,9 +276,18 @@
         <label>排尿</label>
         <input type="text" id="rptUrine" placeholder="例）4回（うちパッド2回） または 4回">
       </div>
-      <div>
+      <div style="margin-bottom:14px">
         <label>排便</label>
-        <input type="text" id="rptStool" placeholder="例）1回 または 無し" style="width:60%">
+        <input type="text" id="rptStool" placeholder="例）1回普通軟便 または 無し" style="width:70%">
+      </div>
+      <div style="border-top:1px dashed var(--line);padding-top:12px">
+        <label>服薬時間（任意・複数可）</label>
+        <div style="display:flex;gap:8px;margin-top:6px;align-items:center">
+          <input type="time" id="medTimeInput" style="width:130px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:14px;background:var(--paper)">
+          <span style="font-size:12px;color:var(--ink-soft)">未入力なら省略されます</span>
+        </div>
+        <p id="medTimeHint" style="display:none;font-size:11px;color:var(--ink-soft);margin-top:6px;line-height:1.6"></p>
+        <button id="openClockBtn" style="display:none;margin-top:8px" class="btn-ghost btn-sm">⏰ 時計アプリでアラームをセット（iPhone）</button>
       </div>
     </div>
 
@@ -362,7 +358,6 @@ const STORE_KEY = 'guide-helper-appdata';
 
 // ── State ──
 let users = [];
-let transportPresets = [];
 let quickPresets = [];
 let currentItems = [];
 
@@ -370,7 +365,7 @@ let currentItems = [];
 function saveAll() {
   try {
     localStorage.setItem(STORE_KEY, JSON.stringify({
-      users, transportPresets, quickPresets,
+      users, quickPresets,
       savedAt: new Date().toISOString()
     }));
     showToast('💾 保存しました');
@@ -386,7 +381,7 @@ function loadAll() {
     if (!raw) return;
     const d = JSON.parse(raw);
     users              = Array.isArray(d.users)              ? d.users              : [];
-    transportPresets   = Array.isArray(d.transportPresets)   ? d.transportPresets   : [];
+
     quickPresets       = Array.isArray(d.quickPresets)       ? d.quickPresets       : [];
   } catch(e) {
     console.error('load error', e);
@@ -410,6 +405,13 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
     btn.classList.add('active');
     document.getElementById('panel-' + btn.dataset.tab).classList.add('active');
+    // 報告メールタブに切り替えた時に利用者・日付を同期
+    if (btn.dataset.tab === 'report') {
+      syncRptUsers();
+      syncMainToReport();
+      const rptDate = document.getElementById('rptDate');
+      if (!rptDate.value) rptDate.value = document.getElementById('dateInput').value || todayStr();
+    }
   });
 });
 
@@ -580,10 +582,18 @@ document.getElementById('addItemBtn').addEventListener('click', () => {
 });
 
 // ── Quick chips ──
+document.getElementById('quickChipsToggle').addEventListener('click', () => {
+  const chips = document.getElementById('quickChips');
+  const arrow = document.getElementById('quickChipsArrow');
+  const isOpen = chips.style.display !== 'none';
+  chips.style.display = isOpen ? 'none' : 'flex';
+  arrow.textContent = isOpen ? '▼' : '▲';
+});
+
 function renderQuickChips() {
   const wrap = document.getElementById('quickChips');
   wrap.innerHTML = '';
-  const all = [...transportPresets, ...quickPresets];
+  const all = [...quickPresets];
   if (all.length === 0) {
     wrap.innerHTML = '<span class="chip-empty">「移動費」「よく使う項目」タブで保存すると、ここにボタンが出ます</span>';
     return;
@@ -614,84 +624,7 @@ function updateReceipt() {
   balEl.classList.toggle('negative', balance < 0);
 }
 
-// ── Transport presets ──
-function renderTransportList() {
-  const ul = document.getElementById('transportList');
-  ul.innerHTML = '';
-  if (transportPresets.length === 0) {
-    ul.innerHTML = '<li class="item-empty" style="background:none;border:none;">まだ保存された移動費はありません</li>';
-  } else {
-    transportPresets.forEach(p => {
-      const li = document.createElement('li');
-      li.innerHTML = `<span class="label">${escapeHtml(p.label)}<span class="price">${fmt(p.price)}</span></span>
-        <span style="display:flex;gap:6px">
-          <button class="btn-edit" data-id="${p.id}">編集</button>
-          <button class="btn-del" data-id="${p.id}">削除</button>
-        </span>`;
-      ul.appendChild(li);
-    });
-    ul.querySelectorAll('.btn-del').forEach(b => {
-      b.addEventListener('click', () => {
-        transportPresets = transportPresets.filter(p => p.id !== b.dataset.id);
-        saveAll(); renderTransportList(); renderQuickChips();
-      });
-    });
-    ul.querySelectorAll('.btn-edit').forEach(b => {
-      b.addEventListener('click', () => {
-        const p = transportPresets.find(x => x.id === b.dataset.id);
-        if (!p) return;
-        const labelEl = document.getElementById('tLabelInput');
-        const priceEl = document.getElementById('tPriceInput');
-        const btn     = document.getElementById('addTransportBtn');
-        labelEl.value = p.label;
-        priceEl.value = p.price;
-        labelEl.classList.add('editing-highlight');
-        priceEl.classList.add('editing-highlight');
-        btn.textContent = '✏️ 上書き保存';
-        btn.dataset.editId = p.id;
-        document.getElementById('cancelTransportBtn').style.display = '';
-        labelEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        labelEl.focus();
-      });
-    });
-  }
-}
 
-document.getElementById('cancelTransportBtn').addEventListener('click', () => {
-  const labelEl = document.getElementById('tLabelInput');
-  const priceEl = document.getElementById('tPriceInput');
-  const btn     = document.getElementById('addTransportBtn');
-  labelEl.value = ''; priceEl.value = '';
-  labelEl.classList.remove('editing-highlight');
-  priceEl.classList.remove('editing-highlight');
-  delete btn.dataset.editId;
-  btn.textContent = '＋ 移動費を保存';
-  document.getElementById('cancelTransportBtn').style.display = 'none';
-});
-
-document.getElementById('addTransportBtn').addEventListener('click', () => {
-  const labelEl = document.getElementById('tLabelInput');
-  const priceEl = document.getElementById('tPriceInput');
-  const btn     = document.getElementById('addTransportBtn');
-  const label = labelEl.value.trim();
-  const price = Number(priceEl.value);
-  if (!label || !price) return;
-  if (btn.dataset.editId) {
-    // 編集モード: 上書き
-    const idx = transportPresets.findIndex(x => x.id === btn.dataset.editId);
-    if (idx !== -1) transportPresets[idx] = { id: btn.dataset.editId, label, price };
-    delete btn.dataset.editId;
-    btn.textContent = '＋ 移動費を保存';
-  } else {
-    transportPresets.push({ id: Date.now() + Math.random().toString(36).slice(2), label, price });
-  }
-  saveAll();
-  labelEl.value = ''; priceEl.value = '';
-  labelEl.classList.remove('editing-highlight');
-  priceEl.classList.remove('editing-highlight');
-  document.getElementById('cancelTransportBtn').style.display = 'none';
-  renderTransportList(); renderQuickChips();
-});
 
 // ── Quick item presets ──
 function renderQuickList() {
@@ -776,7 +709,7 @@ document.getElementById('addQuickBtn').addEventListener('click', () => {
 
 // ── Backup export / import ──
 document.getElementById('exportBtn').addEventListener('click', () => {
-  const data = { users, transportPresets, quickPresets, exportedAt: new Date().toISOString() };
+  const data = { users, quickPresets, exportedAt: new Date().toISOString() };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url  = URL.createObjectURL(blob);
   const link = document.createElement('a');
@@ -798,10 +731,9 @@ document.getElementById('importFile').addEventListener('change', async (e) => {
     const text = await file.text();
     const data = JSON.parse(text);
     users            = Array.isArray(data.users)            ? data.users            : users;
-    transportPresets = Array.isArray(data.transportPresets) ? data.transportPresets : transportPresets;
     quickPresets     = Array.isArray(data.quickPresets)     ? data.quickPresets     : quickPresets;
     saveAll();
-    renderUserSelect(); renderTransportList(); renderQuickList(); renderQuickChips();
+    renderUserSelect(); renderQuickList(); renderQuickChips();
     showToast('バックアップを読み込みました');
   } catch(err) {
     showToast('読み込みに失敗しました。ファイルを確認してください');
@@ -871,6 +803,12 @@ function buildReportText() {
   // 本文1行目: 7月26日(日) 利用者名 10:00-17:00 ヘルパー名
   const firstLine = `${dateLabel} ${userName} ${start}-${end} ${helper}`;
 
+  // 服薬時間をメール用に整形
+  const medLine = medAlarms.length > 0
+    ? '
+' + medAlarms.map(a => `服薬${a.time}`).join('　')
+    : '';
+
   const body =
 `${firstLine}
 
@@ -884,7 +822,7 @@ ${condition}
 
 排尿${urine}
 
-排便${stool}
+排便${stool}${medLine}
 
 【特段の要望】
 ${request}
@@ -908,16 +846,90 @@ ${body}`;
   const gmailWeb = `https://mail.google.com/mail/?view=cm&to=${encodeURIComponent(to)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 
   document.getElementById('rptMailtoLink').onclick = () => {
-    // まずGmailアプリを試みる
     window.location.href = gmailApp;
-    // アプリが入っていない場合はGmailウェブを開く
-    setTimeout(() => {
-      window.open(gmailWeb, '_blank');
-    }, 1500);
   };
   document.getElementById('rptPreviewCard').style.display = 'block';
   document.getElementById('rptPreviewCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
 });
+
+// ── 服薬アラーム ──
+let medAlarms = []; // [{time:'HH:MM', triggered:false}]
+let alarmInterval = null;
+
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
+// renderMedTimeList 削除（1件のみ対応に変更）
+
+
+
+// 服薬時間入力：変更時にiPhoneボタン表示＆Android用アラームセット
+document.getElementById('medTimeInput').addEventListener('change', () => {
+  const val = document.getElementById('medTimeInput').value;
+  const hint = document.getElementById('medTimeHint');
+  const clockBtn = document.getElementById('openClockBtn');
+  if (!val) {
+    hint.style.display = 'none';
+    clockBtn.style.display = 'none';
+    medAlarms = [];
+    if (alarmInterval) { clearInterval(alarmInterval); alarmInterval = null; }
+    return;
+  }
+  medAlarms = [{ time: val, triggered: false }];
+  if (isIOS) {
+    hint.textContent = '⏰ 下のボタンから時計アプリでアラームをセットしてください';
+    hint.style.display = 'block';
+    clockBtn.style.display = 'inline-flex';
+  } else {
+    hint.textContent = '🔔 アプリを開いている間、時間になると音とバイブでお知らせします';
+    hint.style.display = 'block';
+    clockBtn.style.display = 'none';
+    startAlarmWatch();
+  }
+});
+
+document.getElementById('openClockBtn').addEventListener('click', () => {
+  window.location.href = 'clock-alarm://';
+});
+
+function startAlarmWatch() {
+  if (alarmInterval) return;
+  alarmInterval = setInterval(() => {
+    const now = new Date();
+    const hhmm = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+    medAlarms.forEach(a => {
+      if (a.time === hhmm && !a.triggered) {
+        a.triggered = true;
+        fireAlarm(a.time);
+      }
+    });
+  }, 10000); // 10秒ごとにチェック
+}
+
+function fireAlarm(time) {
+  // 音を鳴らす
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    function beep(freq, start, dur) {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.frequency.value = freq;
+      o.type = 'sine';
+      g.gain.setValueAtTime(0.6, ctx.currentTime + start);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + dur);
+      o.start(ctx.currentTime + start);
+      o.stop(ctx.currentTime + start + dur + 0.1);
+    }
+    beep(880, 0, 0.3); beep(880, 0.4, 0.3); beep(1100, 0.8, 0.5);
+    beep(880, 1.5, 0.3); beep(880, 1.9, 0.3); beep(1100, 2.3, 0.5);
+  } catch(e) {}
+  // バイブ
+  if (navigator.vibrate) navigator.vibrate([400,200,400,200,600]);
+  // アラートで通知
+  setTimeout(() => {
+    alert(`💊 服薬の時間です！\n${time} の服薬をご確認ください。`);
+  }, 100);
+}
 
 // 送信先編集
 document.getElementById('rptToEditBtn').addEventListener('click', () => {
@@ -988,23 +1000,11 @@ document.getElementById('condCopyBtn').addEventListener('click', async () => {
   setTimeout(() => { msg.style.display = 'none'; }, 4000);
 });
 
-// 報告メールタブに切り替えた時に利用者を同期
-document.querySelectorAll('.tab-btn').forEach(btn => {
-  if (btn.dataset.tab === 'report') {
-    btn.addEventListener('click', () => {
-      syncRptUsers();
-      syncMainToReport();
-      // 日付が未入力の場合のみ今日の日付をセット
-      const rptDate = document.getElementById('rptDate');
-      if (!rptDate.value) rptDate.value = document.getElementById('dateInput').value || todayStr();
-    });
-  }
-});
+
 
 // ── Init ──
 loadAll();
 renderUserSelect();
-renderTransportList();
 renderQuickList();
 renderQuickChips();
 renderItemList();
