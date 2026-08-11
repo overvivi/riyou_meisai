@@ -23,7 +23,7 @@
   .tabs{display:flex;gap:6px;margin-bottom:16px;}
   .tab-btn{flex:1;padding:10px 2px;background:var(--paper);border:1px solid var(--line);
     border-bottom:none;border-radius:10px 10px 0 0;font-family:'Zen Kaku Gothic New',sans-serif;
-    font-weight:700;font-size:11.5px;color:var(--ink-soft);cursor:pointer;position:relative;top:1px;}
+    font-weight:700;font-size:10.5px;color:var(--ink-soft);cursor:pointer;position:relative;top:1px;}
   .tab-btn.active{background:var(--white);color:var(--teal-deep);border-color:var(--teal);
     box-shadow:0 -2px 0 var(--teal) inset;}
   .panel{display:none;}.panel.active{display:block;}
@@ -110,18 +110,19 @@
     <button class="tab-btn" data-tab="transport">移動費</button>
     <button class="tab-btn" data-tab="quick">よく使う項目</button>
     <button class="tab-btn" data-tab="users">利用者</button>
+    <button class="tab-btn" data-tab="report">報告メール</button>
   </div>
 
   <!-- MAIN -->
   <div class="panel active" id="panel-main">
     <div class="card">
       <h2>利用者・日付</h2>
-      <div class="row">
-        <div>
+      <div style="display:flex;gap:10px;align-items:flex-end;">
+        <div style="flex:1.2">
           <label>利用者名</label>
           <select id="userSelect"></select>
         </div>
-        <div>
+        <div style="flex:1">
           <label>日付</label>
           <input type="date" id="dateInput">
         </div>
@@ -161,10 +162,7 @@
       <div class="r-line balance"><span>残高</span><span class="val" id="rBalance">¥0</span></div>
     </div>
 
-    <div class="action-row">
-      <button class="btn-ghost" id="printBtn">🖨 印刷する</button>
-      <button class="btn-ghost" id="screenshotBtn">📷 画像で保存</button>
-    </div>
+
   </div>
 
   <!-- TRANSPORT -->
@@ -181,8 +179,9 @@
           <input type="number" id="tPriceInput" placeholder="円" inputmode="numeric">
         </div>
       </div>
-      <div class="row row2">
-        <button class="btn-primary" id="addTransportBtn" style="width:100%">＋ 移動費を保存</button>
+      <div class="row row2" style="gap:8px">
+        <button class="btn-primary" id="addTransportBtn" style="flex:1">＋ 移動費を保存</button>
+        <button class="btn-ghost" id="cancelTransportBtn" style="display:none">キャンセル</button>
       </div>
     </div>
     <div class="card">
@@ -205,8 +204,9 @@
           <input type="number" id="qPriceInput" placeholder="円" inputmode="numeric">
         </div>
       </div>
-      <div class="row row2">
-        <button class="btn-primary" id="addQuickBtn" style="width:100%">＋ 項目を保存</button>
+      <div class="row row2" style="gap:8px">
+        <button class="btn-primary" id="addQuickBtn" style="flex:1">＋ 項目を保存</button>
+        <button class="btn-ghost" id="cancelQuickBtn" style="display:none">キャンセル</button>
       </div>
     </div>
     <div class="card">
@@ -222,11 +222,121 @@
       <div class="user-manage">
         <input type="text" id="newUserInput" placeholder="新しい利用者名を追加">
         <button class="btn-ghost" id="addUserBtn">追加</button>
+        <button class="btn-ghost" id="cancelUserBtn" style="display:none">キャンセル</button>
       </div>
     </div>
     <div class="card">
       <h2>登録済みの利用者</h2>
       <ul id="userManageList" style="list-style:none;margin:0;padding:0;"></ul>
+    </div>
+  </div>
+
+  <!-- REPORT MAIL -->
+  <div class="panel" id="panel-report">
+    <div class="card">
+      <h2>基本情報</h2>
+      <div style="display:flex;gap:10px;margin-bottom:10px">
+        <div style="flex:1">
+          <label>利用者名</label>
+          <select id="rptUser"></select>
+        </div>
+        <div style="flex:1">
+          <label>日付</label>
+          <input type="date" id="rptDate">
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;margin-bottom:10px">
+        <div style="flex:1">
+          <label>開始時間</label>
+          <input type="time" id="rptStart">
+        </div>
+        <div style="flex:1">
+          <label>終了時間</label>
+          <input type="time" id="rptEnd">
+        </div>
+      </div>
+      <div>
+        <label>ヘルパー名</label>
+        <input type="text" id="rptHelper" placeholder="例）ヘルパー名">
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>外出内容</h2>
+      <div>
+        <label>外出先・内容</label>
+        <textarea id="rptDest" rows="2" placeholder="例）万博記念公園駅（万博記念公園、エキスポシティ）"
+          style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:15px;background:var(--paper);color:var(--ink);resize:vertical"></textarea>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>体調や様子</h2>
+      <div>
+        <label>内容</label>
+        <textarea id="rptCondition" rows="5" placeholder="例）朝、GHのスタッフ様より引き継ぎを受け出発。"
+          style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:15px;background:var(--paper);color:var(--ink);resize:vertical"></textarea>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>水分・排泄</h2>
+      <div style="margin-bottom:10px">
+        <label>水分摂取量（ml）</label>
+        <input type="number" id="rptWater" placeholder="例）1200" inputmode="numeric">
+      </div>
+      <div style="margin-bottom:10px">
+        <label>排尿</label>
+        <input type="text" id="rptUrine" placeholder="例）4回（うちパッド2回） または 4回">
+      </div>
+      <div>
+        <label>排便</label>
+        <input type="text" id="rptStool" placeholder="例）1回 または 無し" style="width:60%">
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>特段の要望</h2>
+      <textarea id="rptRequest" rows="2" placeholder="なし"
+        style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:15px;background:var(--paper);color:var(--ink);resize:vertical"></textarea>
+    </div>
+
+    <div class="card">
+      <h2>環境の変化や特記事項</h2>
+      <textarea id="rptNote" rows="2" placeholder="なし"
+        style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:15px;background:var(--paper);color:var(--ink);resize:vertical"></textarea>
+    </div>
+
+    <div class="card">
+      <h2>送信先</h2>
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--paper);border:1px solid var(--line);border-radius:8px;">
+        <span id="rptToDisplay" style="flex:1;font-size:15px;color:var(--ink)">care.report.inv@gmail.com</span>
+        <button class="btn-edit" id="rptToEditBtn">編集</button>
+      </div>
+      <div id="rptToEditArea" style="display:none;margin-top:8px">
+        <div style="display:flex;gap:8px">
+          <input type="email" id="rptTo" value="care.report.inv@gmail.com" style="flex:1">
+          <button class="btn-ghost" id="rptToSaveBtn">保存</button>
+          <button class="btn-ghost" id="rptToCancelBtn">キャンセル</button>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-bottom:16px">
+      <button class="btn-primary" id="rptPreviewBtn" style="width:100%;padding:14px;font-size:15px;border-radius:10px">
+        📧 メールを作成する
+      </button>
+    </div>
+
+    <!-- プレビュー -->
+    <div class="card" id="rptPreviewCard" style="display:none">
+      <h2>メールプレビュー</h2>
+      <div id="rptPreviewText"
+        style="white-space:pre-wrap;font-size:13px;line-height:1.8;color:var(--ink);background:var(--paper);padding:14px;border-radius:8px;border:1px solid var(--line);margin-bottom:12px;"></div>
+      <a id="rptMailtoLink" href="#"
+        style="display:block;text-align:center;background:var(--teal);color:var(--white);padding:13px;border-radius:10px;font-weight:700;font-size:14px;text-decoration:none">
+        📨 Gmailで送信する
+      </a>
     </div>
   </div>
 
@@ -245,7 +355,7 @@
   <footer class="note">入力内容はこの端末のブラウザに保存されます</footer>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
 <script>
 const fmt = n => "¥" + (Number(n)||0).toLocaleString();
 const STORE_KEY = 'guide-helper-appdata';
@@ -323,6 +433,7 @@ function renderUserSelect() {
   }
   updateReceipt();
   renderUserManageList();
+  syncRptUsers();
 }
 
 function renderUserManageList() {
@@ -382,6 +493,7 @@ document.getElementById('addUserBtn').addEventListener('click', () => {
     delete btn.dataset.editIdx;
     btn.textContent = '追加';
     input.classList.remove('editing-highlight');
+    document.getElementById('cancelUserBtn').style.display = 'none';
     saveAll();
     renderUserSelect();
     // 編集前に選択していた人なら新名前を選択
@@ -399,7 +511,20 @@ document.getElementById('addUserBtn').addEventListener('click', () => {
   }
   input.value = '';
 });
-document.getElementById('userSelect').addEventListener('change', updateReceipt);
+document.getElementById('cancelUserBtn').addEventListener('click', () => {
+  const input = document.getElementById('newUserInput');
+  const btn   = document.getElementById('addUserBtn');
+  input.value = '';
+  input.classList.remove('editing-highlight');
+  delete btn.dataset.editIdx;
+  btn.textContent = '追加';
+  document.getElementById('cancelUserBtn').style.display = 'none';
+});
+
+document.getElementById('userSelect').addEventListener('change', () => {
+  updateReceipt();
+  syncMainToReport();
+});
 
 // ── Date / Cash ──
 function todayStr() {
@@ -407,7 +532,10 @@ function todayStr() {
   return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
 }
 document.getElementById('dateInput').value = todayStr();
-document.getElementById('dateInput').addEventListener('change', updateReceipt);
+document.getElementById('dateInput').addEventListener('change', () => {
+  updateReceipt();
+  syncMainToReport();
+});
 document.getElementById('cashInput').addEventListener('input', updateReceipt);
 
 // ── Item list ──
@@ -521,12 +649,25 @@ function renderTransportList() {
         priceEl.classList.add('editing-highlight');
         btn.textContent = '✏️ 上書き保存';
         btn.dataset.editId = p.id;
+        document.getElementById('cancelTransportBtn').style.display = '';
         labelEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
         labelEl.focus();
       });
     });
   }
 }
+
+document.getElementById('cancelTransportBtn').addEventListener('click', () => {
+  const labelEl = document.getElementById('tLabelInput');
+  const priceEl = document.getElementById('tPriceInput');
+  const btn     = document.getElementById('addTransportBtn');
+  labelEl.value = ''; priceEl.value = '';
+  labelEl.classList.remove('editing-highlight');
+  priceEl.classList.remove('editing-highlight');
+  delete btn.dataset.editId;
+  btn.textContent = '＋ 移動費を保存';
+  document.getElementById('cancelTransportBtn').style.display = 'none';
+});
 
 document.getElementById('addTransportBtn').addEventListener('click', () => {
   const labelEl = document.getElementById('tLabelInput');
@@ -548,6 +689,7 @@ document.getElementById('addTransportBtn').addEventListener('click', () => {
   labelEl.value = ''; priceEl.value = '';
   labelEl.classList.remove('editing-highlight');
   priceEl.classList.remove('editing-highlight');
+  document.getElementById('cancelTransportBtn').style.display = 'none';
   renderTransportList(); renderQuickChips();
 });
 
@@ -586,12 +728,25 @@ function renderQuickList() {
         priceEl.classList.add('editing-highlight');
         btn.textContent = '✏️ 上書き保存';
         btn.dataset.editId = p.id;
+        document.getElementById('cancelQuickBtn').style.display = '';
         labelEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
         labelEl.focus();
       });
     });
   }
 }
+
+document.getElementById('cancelQuickBtn').addEventListener('click', () => {
+  const labelEl = document.getElementById('qLabelInput');
+  const priceEl = document.getElementById('qPriceInput');
+  const btn     = document.getElementById('addQuickBtn');
+  labelEl.value = ''; priceEl.value = '';
+  labelEl.classList.remove('editing-highlight');
+  priceEl.classList.remove('editing-highlight');
+  delete btn.dataset.editId;
+  btn.textContent = '＋ 項目を保存';
+  document.getElementById('cancelQuickBtn').style.display = 'none';
+});
 
 document.getElementById('addQuickBtn').addEventListener('click', () => {
   const labelEl = document.getElementById('qLabelInput');
@@ -613,21 +768,11 @@ document.getElementById('addQuickBtn').addEventListener('click', () => {
   labelEl.value = ''; priceEl.value = '';
   labelEl.classList.remove('editing-highlight');
   priceEl.classList.remove('editing-highlight');
+  document.getElementById('cancelQuickBtn').style.display = 'none';
   renderQuickList(); renderQuickChips();
 });
 
-// ── Print / Screenshot ──
-document.getElementById('printBtn').addEventListener('click', () => window.print());
-document.getElementById('screenshotBtn').addEventListener('click', async () => {
-  const target = document.getElementById('receiptArea');
-  const canvas = await html2canvas(target, { backgroundColor: '#FFFDF8', scale: 2 });
-  const link   = document.createElement('a');
-  const who    = document.getElementById('userSelect').value || '利用明細';
-  const date   = document.getElementById('dateInput').value || todayStr();
-  link.download = `利用明細_${who}_${date}.png`;
-  link.href = canvas.toDataURL('image/png');
-  link.click();
-});
+
 
 // ── Backup export / import ──
 document.getElementById('exportBtn').addEventListener('click', () => {
@@ -662,6 +807,188 @@ document.getElementById('importFile').addEventListener('change', async (e) => {
     showToast('読み込みに失敗しました。ファイルを確認してください');
   }
   e.target.value = '';
+});
+
+// ── 報告メール ──
+function syncMainToReport() {
+  // 利用明細の利用者・日付を報告メールに反映（入力済みの場合は上書きしない）
+  const mainUser = document.getElementById('userSelect').value;
+  const mainDate = document.getElementById('dateInput').value;
+  const rptUser  = document.getElementById('rptUser');
+  const rptDate  = document.getElementById('rptDate');
+  if (rptUser && mainUser) rptUser.value = mainUser;
+  if (rptDate && mainDate) rptDate.value = mainDate;
+}
+
+function syncRptUsers() {
+  const sel = document.getElementById('rptUser');
+  if (!sel) return;
+  const prev = sel.value;
+  sel.innerHTML = '';
+  if (users.length === 0) {
+    const opt = document.createElement('option');
+    opt.value = ''; opt.textContent = '（利用者タブで追加）';
+    sel.appendChild(opt);
+  } else {
+    users.forEach(u => {
+      const opt = document.createElement('option');
+      opt.value = u; opt.textContent = u;
+      sel.appendChild(opt);
+    });
+    if (users.includes(prev)) sel.value = prev;
+  }
+}
+
+function buildReportText() {
+  const DOW = ['日','月','火','水','木','金','土'];
+  const dateVal   = document.getElementById('rptDate').value;
+  const userName  = document.getElementById('rptUser').value || '（利用者名）';
+  const start     = document.getElementById('rptStart').value || '__:__';
+  const end       = document.getElementById('rptEnd').value   || '__:__';
+  const helper    = document.getElementById('rptHelper').value.trim() || '（ヘルパー名）';
+  const dest      = document.getElementById('rptDest').value.trim()      || '（外出先）';
+  const condition = document.getElementById('rptCondition').value.trim() || '（内容）';
+  const water     = document.getElementById('rptWater').value  || '__';
+  const urine     = document.getElementById('rptUrine').value  || '__';
+
+  const stool     = document.getElementById('rptStool').value  || '__';
+  const request   = document.getElementById('rptRequest').value.trim() || 'なし';
+  const noteVal   = document.getElementById('rptNote').value.trim()    || 'なし';
+
+  // 件名: 20260726利用者名
+  let subjectDate = ''; let dateLabel = '（日付）';
+  if (dateVal) {
+    const d = new Date(dateVal);
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,'0');
+    const day = String(d.getDate()).padStart(2,'0');
+    const dow = DOW[d.getDay()];
+    subjectDate = `${y}${m}${day}`;
+    dateLabel = `${d.getMonth()+1}月${d.getDate()}日(${dow})`;
+  }
+  const subject = `${subjectDate}${userName}`;
+
+  // 本文1行目: 7月26日(日) 利用者名 10:00-17:00 ヘルパー名
+  const firstLine = `${dateLabel} ${userName} ${start}-${end} ${helper}`;
+
+  const body =
+`${firstLine}
+
+【外出内容】
+${dest}
+
+【体調や様子】
+${condition}
+
+水分摂取量${water}ml
+
+排尿${urine}
+
+排便${stool}
+
+【特段の要望】
+${request}
+
+【環境の変化や特記事項】
+${noteVal}`;
+
+  return { subject, body };
+}
+
+document.getElementById('rptPreviewBtn').addEventListener('click', () => {
+  const { subject, body } = buildReportText();
+  const to = document.getElementById('rptTo').value.trim();
+
+  document.getElementById('rptPreviewText').textContent = `件名：${subject}
+
+${body}`;
+
+  const mailto = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  document.getElementById('rptMailtoLink').href = mailto;
+  document.getElementById('rptPreviewCard').style.display = 'block';
+  document.getElementById('rptPreviewCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+
+// 送信先編集
+document.getElementById('rptToEditBtn').addEventListener('click', () => {
+  const display = document.getElementById('rptToDisplay');
+  const input   = document.getElementById('rptTo');
+  input.value   = display.textContent.trim();
+  document.getElementById('rptToEditArea').style.display = 'block';
+  document.getElementById('rptToEditBtn').style.display  = 'none';
+  input.focus();
+});
+document.getElementById('rptToSaveBtn').addEventListener('click', () => {
+  const input = document.getElementById('rptTo');
+  const val   = input.value.trim();
+  if (val) document.getElementById('rptToDisplay').textContent = val;
+  document.getElementById('rptToEditArea').style.display = 'none';
+  document.getElementById('rptToEditBtn').style.display  = '';
+});
+document.getElementById('rptToCancelBtn').addEventListener('click', () => {
+  document.getElementById('rptToEditArea').style.display = 'none';
+  document.getElementById('rptToEditBtn').style.display  = '';
+});
+
+// ── 体調欄 削除・戻す・コピー ──
+let condBackup = '';
+
+document.getElementById('condClearBtn').addEventListener('click', () => {
+  const ta = document.getElementById('rptCondition');
+  if (!ta.value.trim()) return;
+  condBackup = ta.value;
+  ta.value = '';
+  document.getElementById('condUndoBtn').disabled = false;
+});
+
+document.getElementById('condUndoBtn').addEventListener('click', () => {
+  const ta = document.getElementById('rptCondition');
+  ta.value = condBackup;
+  condBackup = '';
+  document.getElementById('condUndoBtn').disabled = true;
+});
+
+document.getElementById('condCopyBtn').addEventListener('click', async () => {
+  const ta   = document.getElementById('rptCondition');
+  const text = ta.value.trim();
+  if (!text) {
+    showToast('体調や様子を入力してください');
+    return;
+  }
+  const prompt = '以下の活動報告書の下書きを、指定のルールに従って整えてください。\n\n【ルール】\n■ 文体・表現\n・「です・ます調（敬体）」で統一する。\n・時系列に沿って自然な流れで記載する。\n・「〜される」ではなく「〜されました」「〜されています」など自然な敬語にする。\n・「引き継ぎし」は「引き継ぎを行い」など自然な形に整える。\n・一文が長くなりすぎないよう、適度に区切る。\n\n■ 行動の書き方\n・出発→移動→昼食→活動→帰路→帰所・帰宅→引き継ぎ→支援終了の流れを基本とする。\n・移動は「電車を乗り継いで」「バスを利用して」「徒歩で」「車椅子で」など移動手段を明記する。\n・「向かわれました」「移動されました」を適宜使い分け、同じ表現が続きすぎないようにする。\n\n■ 食事・買い物\n・食事は「昼食として○○を購入され完食。」「おやつとして○○を購入され完食。」の形で統一する。\n・飲み物は「購入され完飲。」\n・買い物は「○○を購入されました。」とする。\n\n■ イベント・活動\n・「○○を楽しまれる」ではなく「○○を楽しまれました。」「○○を鑑賞されました。」「○○に参加されました。」など自然な表現にする。\n\n■ 服薬・健康\n・服薬は「（11:30服薬）」のように時刻のみを括弧書きで入れる。\n・GHや親御様からの申し送りは冒頭に記載する。例：「朝、GHの職員様より『変わりなく』と引き継ぎを受け出発。」\n\n■ 固有名詞・表記\n・寝屋川駅 → 寝屋川市駅\n・万博記念公園の駅は「万博記念公園駅」\n・餃子の王将／EXPOCITY／あべのキューズモール／あべのハルカス（正式名称に統一）\n・「だいどう豊里駅」など誤字・変換ミスは修正する。\n\n■ 最後の締め方\n・GHの場合：「駅から車椅子でGHまで帰所し、スタッフ様へ当日の様子を引き継ぎし、支援を終了しています。」\n・自宅の場合：「徒歩で帰宅。親御様へ当日の様子を引き継ぎし、支援を終了しています。」\n\n■ 全体の方針\n・必要以上に表現を変えず、元の内容を忠実に残す。\n・誤字・脱字・不自然な日本語のみ修正する。\n・福祉サービスの活動報告書として、そのまま提出できる文章を目指す。\n\n【下書き】\n' + text;
+  const msg = document.getElementById('condCopyMsg');
+  try {
+    await navigator.clipboard.writeText(prompt);
+    msg.textContent = '✅ コピーしました！ChatGPTに貼り付けてください';
+    msg.style.display = 'block';
+    // ChatGPTアプリへ誘導（アプリがあれば開く、なければWebブラウザ）
+    setTimeout(() => {
+      window.location.href = 'chatgpt://';
+      // アプリが開かなかった場合のフォールバック
+      setTimeout(() => {
+        window.open('https://chat.openai.com', '_blank');
+      }, 1500);
+    }, 400);
+  } catch(e) {
+    // クリップボードAPIが使えない場合
+    msg.textContent = '⚠ 自動コピーできませんでした。下のテキストを手動でコピーしてください';
+    msg.style.display = 'block';
+    ta.select();
+  }
+  setTimeout(() => { msg.style.display = 'none'; }, 4000);
+});
+
+// 報告メールタブに切り替えた時に利用者を同期
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  if (btn.dataset.tab === 'report') {
+    btn.addEventListener('click', () => {
+      syncRptUsers();
+      syncMainToReport();
+      // 日付が未入力の場合のみ今日の日付をセット
+      const rptDate = document.getElementById('rptDate');
+      if (!rptDate.value) rptDate.value = document.getElementById('dateInput').value || todayStr();
+    });
+  }
 });
 
 // ── Init ──
