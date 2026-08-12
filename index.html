@@ -307,7 +307,7 @@
       </div>
       <div id="rptToEditArea" style="display:none;margin-top:8px">
         <div style="display:flex;gap:8px">
-          <input type="email" id="rptTo" value="care.report.inv@gmail.com" style="flex:1">
+          <input type="email" id="rptTo" placeholder="送信先メールアドレス" style="flex:1">
           <button class="btn-ghost" id="rptToSaveBtn">保存</button>
           <button class="btn-ghost" id="rptToCancelBtn">キャンセル</button>
         </div>
@@ -844,7 +844,8 @@ ${noteVal}`;
 
 document.getElementById('rptPreviewBtn').addEventListener('click', () => {
   const { subject, body } = buildReportText();
-  const to = document.getElementById('rptToDisplay').textContent.trim();
+  const toRaw = document.getElementById('rptToDisplay').textContent.trim();
+  const to = toRaw === '（未設定）' ? '' : toRaw;
   document.getElementById('rptPreviewText').textContent = `件名：${subject}\n${'─'.repeat(20)}\n${body}`;
   const gmailApp = `googlegmail://co?to=${encodeURIComponent(to)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   document.getElementById('rptMailtoLink').onclick = () => { window.location.href = gmailApp; };
@@ -855,14 +856,26 @@ document.getElementById('rptPreviewBtn').addEventListener('click', () => {
 // ── 送信先編集 ──
 document.getElementById('rptToEditBtn').addEventListener('click', () => {
   const display = document.getElementById('rptToDisplay');
-  document.getElementById('rptTo').value = display.textContent.trim();
+  const val = display.textContent.trim();
+  document.getElementById('rptTo').value = val;
   document.getElementById('rptToEditArea').style.display = 'block';
   document.getElementById('rptToEditBtn').style.display  = 'none';
   document.getElementById('rptTo').focus();
 });
+
+// 初期表示：未設定ならグレー表示
+(function() {
+  const display = document.getElementById('rptToDisplay');
+  if (!display.textContent.trim()) {
+    display.textContent = '（未設定）';
+    display.style.color = 'var(--ink-soft)';
+  }
+})();
 document.getElementById('rptToSaveBtn').addEventListener('click', () => {
   const val = document.getElementById('rptTo').value.trim();
-  if (val) document.getElementById('rptToDisplay').textContent = val;
+  const display = document.getElementById('rptToDisplay');
+  display.textContent = val;
+  display.style.color = val ? 'var(--ink)' : 'var(--ink-soft)';
   document.getElementById('rptToEditArea').style.display = 'none';
   document.getElementById('rptToEditBtn').style.display  = '';
 });
